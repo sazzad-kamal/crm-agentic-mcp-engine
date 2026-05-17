@@ -90,7 +90,7 @@ flowchart LR
     FA[Final Answer] --> V{Deterministic<br/>Validate gate}
     V -->|ok| AF[Action + Followup]
     V -->|fail| C[Critic emits<br/>structured critique]
-    C --> R[Agent revises<br/>(no tools)]
+    C --> R["Agent revises<br/>(no tools)"]
     R --> V
     V -->|max 2 repairs<br/>exhausted| FB[Fallback<br/>evidence-only answer]
 ```

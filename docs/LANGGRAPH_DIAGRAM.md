@@ -19,10 +19,10 @@ flowchart TB
     Agent -->|tool_use<br/>turn_count++| ToolNode
     ToolNode -->|tool_result<br/>citations merged| Agent
 
-    Agent -->|final answer<br/>OR turn_count >= 6| Validate
+    Agent -->|"final answer<br/>OR turn_count >= 6"| Validate
 
-    Validate -->|fail<br/>repair_count < 2| Agent
-    Validate -->|fail<br/>repair_count >= 2| Fallback
+    Validate -->|"fail<br/>repair_count < 2"| Agent
+    Validate -->|"fail<br/>repair_count >= 2"| Fallback
     Validate -->|pass| Action
     Validate -->|pass| Followup
 
