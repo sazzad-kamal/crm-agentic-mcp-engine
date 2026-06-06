@@ -2,7 +2,6 @@
 
 **Tool-use agent (Claude Sonnet) backed by a standalone MCP server that reasons across CRM data, product documentation, and a knowledge graph — with grounded answers, traceable evidence, and quality gates.**
 
-[![Tests](https://img.shields.io/badge/tests-220%2B%20passing-brightgreen)](#evaluation)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org/)
 [![MCP](https://img.shields.io/badge/protocol-MCP-purple)](https://modelcontextprotocol.io/)
 [![LangGraph](https://img.shields.io/badge/orchestration-LangGraph-purple)](https://github.com/langchain-ai/langgraph)
@@ -39,7 +38,7 @@ flowchart TB
     ACT & FU --> DONE((END))
 
     MCPSRV -.->|sql_query<br/>sql_compare<br/>sql_trend<br/>sql_health| DB[(DuckDB)]
-    MCPSRV -.->|rag_search| VS[(LlamaIndex<br/>vector + BM25)]
+    MCPSRV -.->|rag_search| VS[(Qdrant<br/>via LlamaIndex<br/>vector + BM25)]
     MCPSRV -.->|graph_query| N4[(Neo4j)]
 
     classDef agent fill:#fef3c7,stroke:#d97706,color:#78350f
@@ -186,11 +185,11 @@ The agent's system prompt + 6 tool schemas are cache-stable across turns within 
 
 ## Evaluation Framework
 
-60 grounded questions covering every tool path, RAGAS metrics, LLM-as-Judge for terminal-node quality, regression gate on every CI run.
+A curated grounded evaluation set — **manually authored, not synthetic** — covering every tool path. Each question is paired with **expected source IDs** (gold labels) so retrieval scoring can be ground-truthed. RAGAS metrics, LLM-as-Judge for terminal-node quality, regression gate on every CI run.
 
 ```mermaid
 flowchart LR
-    Q[("60 Grounded<br/>Questions")] --> PIPE["Full Pipeline<br/>(agent → tools → validate)"]
+    Q[("Grounded<br/>Questions")] --> PIPE["Full Pipeline<br/>(agent → tools → validate)"]
     PIPE --> RAGAS["RAGAS<br/>faithfulness<br/>relevancy<br/>correctness"]
     PIPE --> AJ["Action Judge<br/>relevance<br/>actionability<br/>appropriateness"]
     PIPE --> FJ["Followup Judge<br/>relevance<br/>grounding<br/>diversity"]
@@ -217,9 +216,36 @@ flowchart LR
 | **Performance** | p50 Latency | ≤ 3s | Full pipeline (warm cache) |
 | | p95 Latency | ≤ 8s | Full pipeline |
 
+**Regression gate:** CI fails when RAGAS composite drops more than 0.05 absolute vs the baseline JSON.
+
+### Why LLM-as-Judge over hard rules
+
+Hard rules can't capture nuance — questions like "is this well-organized?" or "is the explanation clear?" don't reduce to keyword matches. Human review is ground truth but doesn't scale. Hybrid: LLM-as-judge runs on the full eval set; humans calibrate on a subset and spot-check judge drift.
+
+### Retrieval Diagnostic
+
+Recall@k / Precision@k / MRR run offline as a diagnostic lens — not part of the CI gate. When RAGAS regresses, these isolate the failure layer:
+
+- Retrieval stable + RAGAS down → synthesis problem (prompt / LLM)
+- Retrieval down + RAGAS down → retrieval problem (chunking, embeddings, reranker)
+
+RAGAS leads config selection; retrieval metrics diagnose.
+
+### Cost Considerations
+
+RAGAS uses LLM-as-judge internally, so eval cost per CI run is non-trivial. Mitigated by:
+
+- Full eval on PR
+- Smaller smoke set on push
+- Sampled scoring on production traffic (not every request)
+
+### Drift Detection & Production Monitoring
+
+Embedding-space drift detection compares target corpus to current corpus and flags when drift exceeds threshold. SLO burn-rate alerts fire when production latency, RAGAS faithfulness, or validate-repair fallback rate breach their baselines — catching regressions in production, not just at merge time.
+
 ### RAG Retrieval Strategy Comparison
 
-Automated pipeline comparing **6 retrieval configurations** across 20 grounded questions using RAGAS metrics:
+Automated pipeline comparing **6 retrieval configurations** across the grounded question set using RAGAS metrics:
 
 | Config | Retriever | Top-K | Reranker |
 |--------|-----------|-------|----------|
