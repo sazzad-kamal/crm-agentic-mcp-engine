@@ -126,15 +126,14 @@ LLMs are bad at arithmetic over JSON rows; this delegation pattern keeps the mat
 
 ## Why MCP (not in-process tools)
 
-The MCP server is a **separate process** (Anthropic's Model Context Protocol, JSON-RPC over stdio or HTTP). Trade-offs accepted on purpose:
+The MCP server is a **separate process** (Anthropic's Model Context Protocol, JSON-RPC over stdio or HTTP). Two real engineering wins drove the choice:
 
 | Property | What it buys |
 |---|---|
-| **Protocol-level contracts (JSON Schema)** | Wire-level schema drift fails loudly, not silently in Python |
-| **Process isolation** | A tool crash (Neo4j hiccup, LlamaIndex OOM) doesn't take down the agent |
-| **Industry-standard protocol** | Same server demoable in Claude Desktop, Cursor, Zed — two products from one codebase |
-| **Independent deploy + scale** | Server can run on different hardware (e.g., GPU box for reranker) without changing the agent |
-| **Auth boundary** | Server can enforce its own authz independently of the engine |
+| **Protocol-level contracts (JSON Schema)** | Wire-level schema drift fails loudly at the protocol boundary, not silently inside Python. Bad parameters get caught before tool execution, not deep in code paths. |
+| **Process isolation** | A tool crash (Neo4j hiccup, LlamaIndex OOM) doesn't take down the agent. Memory leaks in one tool don't degrade the whole system. Restart the MCP server without restarting the agent. |
+
+Future-proofing benefits — portability across MCP-speaking clients (Claude Desktop, Cursor), independent deploy/scale, auth boundary — are real but secondary; the immediate engineering value is reliability + correctness at the tool boundary.
 
 The cost is one IPC hop per tool call (~1 ms stdio, network RTT over HTTP) and a separate process lifecycle to manage. Both are well-amortized: prompt-cached agent loops + per-tool TTL LRU cache mean most turns spend their latency budget in the actual SQL/Cypher/retrieval work, not the protocol.
 
