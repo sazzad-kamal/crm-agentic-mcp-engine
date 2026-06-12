@@ -178,7 +178,7 @@ flowchart LR
 
 ### Cost engineering — prompt caching cuts agent loop tokens ~85%
 
-The agent's system prompt + 6 tool schemas are cache-stable across turns within Anthropic's 5-minute ephemeral cache window. Cache control is wired on the system content block + last tool definition. Effect on a typical 3-turn cross-source question: first turn pays full token cost; turns 2-3 pay ~10% (cache hits). Per-tool TTL LRU cache (60s for SQL/Graph, 300s for RAG, 30s for health) on the MCP server side eliminates redundant tool execution during repair loops.
+The agent's system prompt + 6 tool schemas are cache-stable across turns within Anthropic's 5-minute ephemeral cache window. Cache control is wired on the system content block + last tool definition. Effect on a typical 3-turn cross-source question: first turn pays full token cost; turns 2-3 pay ~10% (cache hits). Per-tool TTL LRU cache (60s for SQL/Graph, 300s for RAG, 30s for health) on the MCP server side reduces redundant tool execution when the same parameters recur within a session — most valuable for frequent short-TTL calls like sql_health and for cross-node reuse (Action + Followup querying similar context).
 
 ---
 
