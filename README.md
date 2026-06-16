@@ -77,26 +77,31 @@ flowchart TB
 
     subgraph RW2["MCP server · Railway (separate service)"]
         TL["6 JSON-Schema tools · guards · per-tool TTL cache"]
-        DUCK[("DuckDB — in-process<br/>CRM data from baked CSVs · [E#]")]
+        DUCK[("DuckDB — in-process<br/>baked CSVs · E#")]
         TL --> DUCK
     end
 
-    QDR[("Qdrant Cloud<br/>doc vectors · [D#]")]
-    NEO[("Neo4j Aura<br/>graph · [G#]")]
-    CLA["Claude Sonnet 4.6 (agent)<br/>/ 4.5 (SQL·Cypher gen)"]
-    GPT["GPT-5.4-nano<br/>Action · Followup"]
-    EMB["OpenAI<br/>text-embedding-3-small"]
-    OBS["LangSmith<br/>tracing · latency · SLOs"]
+    subgraph DATA["Managed data stores"]
+        QDR[("Qdrant Cloud<br/>doc vectors · D#")]
+        NEO[("Neo4j Aura<br/>graph · G#")]
+    end
+
+    subgraph SHARED["Shared services"]
+        CLA["Claude Sonnet 4.6 (agent)<br/>· 4.5 (SQL·Cypher gen)"]
+        GPT["GPT-5.4-nano<br/>Action · Followup"]
+        EMB["OpenAI<br/>text-embedding-3-small"]
+        OBS["LangSmith<br/>tracing · latency · SLOs"]
+    end
 
     User --> UI
     UI <-->|"HTTPS · SSE"| API
-    MC <-->|"JSON-RPC / HTTPS<br/>calls → · ← results + [E#/D#/G#]"| TL
+    MC <-->|"JSON-RPC / HTTPS · results + [E#/D#/G#]"| TL
     TL -->|RAG| QDR
     TL -->|Graph| NEO
-    TL -. embeds .-> EMB
     AG -. LLM .-> CLA
     AG -. LLM .-> GPT
     TL -. SQL/Cypher .-> CLA
+    TL -. embeds .-> EMB
     AG -. traces .-> OBS
     TL -. traces .-> OBS
 ```
