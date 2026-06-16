@@ -25,21 +25,26 @@ This one question touches three sources — CRM data (feature usage, renewal sta
 
 ```mermaid
 flowchart TB
-    Q(("User<br/>Question")) --> AGENT["Agent<br/>(Claude Sonnet 4.6 — ReAct loop)"]
+    Q(("User<br/>Question")) --> AGENT["Agent<br/>(Claude Sonnet 4.6 — ReAct loop)<br/>≤ 6 turns"]
 
-    AGENT -->|tool_use| MCP_CLIENT["MCP Client<br/>(JSON-RPC over HTTP)"]
+    AGENT -->|"tool_use<br/>(single / parallel)"| MCP_CLIENT["MCP Client<br/>(JSON-RPC over HTTP)"]
     MCP_CLIENT <-.->|"6 JSON-Schema-<br/>contracted tools"| MCPSRV[("standalone<br/>MCP server<br/>crm-mcp-server")]
     MCP_CLIENT -->|tool_result| AGENT
 
-    AGENT -->|"final answer<br/>with [E#]/[D#]/[G#] tags"| VAL["Validate<br/>(deterministic<br/>regex + Pydantic)"]
-    VAL -->|fail| RPR["Reflexion-style<br/>repair (max 2)"]
-    RPR --> AGENT
-    VAL -->|pass| ACT["Action"] & FU["Followup"]
-    ACT & FU --> DONE((END))
+    AGENT -->|"emits candidate answer<br/>with [E#]/[D#]/[G#] tags"| VAL["Validate<br/>(deterministic<br/>regex + Pydantic)"]
+    VAL -->|"fail · retries left<br/>(Reflexion repair, max 2)"| AGENT
+    VAL -->|"fail · max repairs hit"| FB["Fallback<br/>(evidence-only<br/>degraded answer)"]
+    VAL -->|"pass → final answer"| RESP
+    VAL -->|pass| ACT["Action<br/>(suggested next step)"] & FU["Followup<br/>(follow-up prompts)"]
+    ACT -.attach.-> RESP
+    FU -.attach.-> RESP
+    FB -->|degraded answer| RESP
 
-    MCPSRV -.->|sql_query<br/>sql_compare<br/>sql_trend<br/>sql_health| DB[(DuckDB)]
-    MCPSRV -.->|rag_search| VS[(Qdrant<br/>via LlamaIndex<br/>vector + BM25)]
-    MCPSRV -.->|graph_query| N4[(Neo4j)]
+    RESP(["Streamed response (SSE)<br/>final answer + action + follow-ups"])
+
+    MCPSRV -.->|sql_query<br/>sql_compare<br/>sql_trend<br/>sql_health| DB[("DuckDB<br/>CRM data · E#")]
+    MCPSRV -.->|rag_search| VS[("Qdrant · LlamaIndex<br/>hybrid: vector + BM25 · D#")]
+    MCPSRV -.->|graph_query| N4[("Neo4j<br/>graph · G#")]
 
     classDef agent fill:#fef3c7,stroke:#d97706,color:#78350f
     classDef tool fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
@@ -48,8 +53,8 @@ flowchart TB
 
     class AGENT agent
     class MCP_CLIENT,MCPSRV tool
-    class ACT,FU,VAL,RPR response
-    class Q,DONE,DB,VS,N4 boundary
+    class VAL,ACT,FU,FB,RESP response
+    class Q,DB,VS,N4 boundary
 ```
 
 **5-node LangGraph + 1 standalone MCP server.** Two products from one codebase: the engine (web UI surface) consumes the MCP server over HTTP/SSE; the same MCP server is independently demoable in Claude Desktop via stdio. Six JSON-Schema-contracted tools serve as the protocol surface — `sql_query`, `sql_compare`, `sql_trend`, `sql_health`, `rag_search`, `graph_query` — over DuckDB, LlamaIndex, and Neo4j.
