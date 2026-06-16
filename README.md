@@ -57,6 +57,35 @@ flowchart TB
     class Q,DB,VS,N4 boundary
 ```
 
+<details>
+<summary><b>Architecture at a glance</b> — the spine (full detail above)</summary>
+
+```mermaid
+flowchart TB
+    Q(("User")) --> AGENT["Agent"]
+
+    AGENT --> MCP_CLIENT["MCP Client"]
+    MCP_CLIENT <--> MCPSRV["MCP server"]
+    MCP_CLIENT --> AGENT
+
+    AGENT --> VAL["Validate"]
+    VAL -->|"repair ×2"| AGENT
+    VAL --> FB["Fallback"]
+    VAL -->|pass| RESP
+    VAL --> ACT["Action"] & FU["Followup"]
+    ACT --> RESP
+    FU --> RESP
+    FB --> RESP
+
+    RESP(["Response"])
+
+    MCPSRV --> DB[("DuckDB")]
+    MCPSRV --> VS[("Qdrant")]
+    MCPSRV --> N4[("Neo4j")]
+```
+
+</details>
+
 **5-node LangGraph + 1 standalone MCP server.** Two products from one codebase: the engine (web UI surface) consumes the MCP server over HTTP/SSE; the same MCP server is independently demoable in Claude Desktop via stdio. Six JSON-Schema-contracted tools serve as the protocol surface — `sql_query`, `sql_compare`, `sql_trend`, `sql_health`, `rag_search`, `graph_query` — over DuckDB, LlamaIndex, and Neo4j.
 
 > Examples: "Show Q1 deals" → `sql_query` · "Q1 vs Q2 revenue" → `sql_compare` · "Revenue trend by month" → `sql_trend` · "Acme's health score" → `sql_health` · "How do I import contacts?" → `rag_search` · "Who is connected to our competitors?" → `graph_query` · "Acme renewal: under-used features + doc recommendations + committee minus competitors?" → **parallel calls to sql_query + rag_search + graph_query** (cross-source).
