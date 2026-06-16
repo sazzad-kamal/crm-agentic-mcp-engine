@@ -128,9 +128,7 @@ flowchart TB
     User --> UI
     UI <-->|"HTTPS · SSE"| API
     MC <-->|"JSON-RPC / HTTPS · results + [E#/D#/G#]"| TL
-    TL -->|SQL| PG
-    TL -->|RAG| QDR
-    TL -->|Graph| NEO
+    RW2 -->|"SQL · RAG · Graph"| DATA
     RW1 -.->|"LLM · traces"| SHARED
     RW2 -.->|"LLM · embed · traces"| SHARED
 
