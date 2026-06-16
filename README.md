@@ -118,7 +118,7 @@ flowchart TB
         NEO[("Neo4j Aura<br/>graph · G#")]
     end
 
-    subgraph SHARED["Shared services"]
+    subgraph SHARED["Model & observability services"]
         CLA["Claude Sonnet 4.6 (agent)<br/>· 4.5 (SQL·Cypher gen)"]
         GPT["GPT-5.4-nano<br/>Action · Followup"]
         EMB["OpenAI<br/>text-embedding-3-small"]
@@ -167,7 +167,7 @@ flowchart TB
         NEO[("Neo4j")]
     end
 
-    subgraph SHARED["Shared services"]
+    subgraph SHARED["Model & observability services"]
         CLA["Claude"]
         GPT["GPT"]
         EMB["Embeddings"]
