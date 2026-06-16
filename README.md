@@ -56,6 +56,51 @@ flowchart TB
 
 > Examples: "Show Q1 deals" → `sql_query` · "Q1 vs Q2 revenue" → `sql_compare` · "Revenue trend by month" → `sql_trend` · "Acme's health score" → `sql_health` · "How do I import contacts?" → `rag_search` · "Who is connected to our competitors?" → `graph_query` · "Acme renewal: under-used features + doc recommendations + committee minus competitors?" → **parallel calls to sql_query + rag_search + graph_query** (cross-source).
 
+### Deployment & system topology
+
+The same logical design, deployed: the engine and the MCP server run as **separate Railway services** (process isolation, independent scale); retrieval and graph live in **managed Qdrant Cloud and Neo4j Aura**; the SQL store is an **in-process DuckDB** loaded from data baked into the MCP image. The MCP boundary is JSON-RPC over HTTPS, carrying tool calls one way and `{result, citations[E#/D#/G#]}` back.
+
+```mermaid
+flowchart TB
+    User(("User"))
+
+    subgraph BROWSER["Browser"]
+        UI["React UI — chat + data panels (SSE)"]
+    end
+
+    subgraph RW1["Engine service · Railway"]
+        API["FastAPI · /api/chat/stream"]
+        AG["5-node LangGraph agent<br/>Agent · Validate · Repair · Action · Followup"]
+        MC["MCP client"]
+        API --> AG --> MC
+    end
+
+    subgraph RW2["MCP server · Railway (separate service)"]
+        TL["6 JSON-Schema tools · guards · per-tool TTL cache"]
+        DUCK[("DuckDB — in-process<br/>CRM data from baked CSVs · [E#]")]
+        TL --> DUCK
+    end
+
+    QDR[("Qdrant Cloud<br/>doc vectors · [D#]")]
+    NEO[("Neo4j Aura<br/>graph · [G#]")]
+    CLA["Claude Sonnet 4.6 (agent)<br/>/ 4.5 (SQL·Cypher gen)"]
+    GPT["GPT-5.4-nano<br/>Action · Followup"]
+    EMB["OpenAI<br/>text-embedding-3-small"]
+    OBS["LangSmith<br/>tracing · latency · SLOs"]
+
+    User --> UI
+    UI <-->|"HTTPS · SSE"| API
+    MC <-->|"JSON-RPC / HTTPS<br/>calls → · ← results + [E#/D#/G#]"| TL
+    TL -->|RAG| QDR
+    TL -->|Graph| NEO
+    TL -. embeds .-> EMB
+    AG -. LLM .-> CLA
+    AG -. LLM .-> GPT
+    TL -. SQL/Cypher .-> CLA
+    AG -. traces .-> OBS
+    TL -. traces .-> OBS
+```
+
 ---
 
 ## ReAct + Reflexion — the two named patterns
