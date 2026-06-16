@@ -42,7 +42,7 @@ flowchart TB
 
     RESP(["Response"])
 
-    MCPSRV -.->|sql_query<br/>sql_compare<br/>sql_trend<br/>sql_health| DB[("DuckDB<br/>CRM data · E#")]
+    MCPSRV -.->|sql_query<br/>sql_compare<br/>sql_trend<br/>sql_health| DB[("SQL<br/>CRM data · E#")]
     MCPSRV -.->|rag_search| VS[("Qdrant · LlamaIndex<br/>hybrid: vector + BM25 · D#")]
     MCPSRV -.->|graph_query| N4[("Neo4j<br/>graph · G#")]
 
@@ -78,7 +78,7 @@ flowchart TB
 
     RESP(["Response"])
 
-    MCPSRV --> DB[("DuckDB")]
+    MCPSRV --> DB[("SQL")]
     MCPSRV --> VS[("Qdrant")]
     MCPSRV --> N4[("Neo4j")]
 ```
@@ -103,7 +103,7 @@ flowchart TB
 
     subgraph RW1["Engine service · Railway"]
         API["FastAPI · /api/chat/stream"]
-        AG["5-node LangGraph agent<br/>Agent · Validate · Repair · Action · Followup"]
+        AG["5-node LangGraph agent<br/>Agent · Validate · Action · Followup · Fallback"]
         MC["MCP client"]
         API --> AG --> MC
     end
