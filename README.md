@@ -64,9 +64,8 @@ flowchart TB
 flowchart TB
     Q(("User")) --> AGENT["Agent"]
 
-    AGENT --> MCP_CLIENT["MCP Client"]
+    AGENT <--> MCP_CLIENT["MCP Client"]
     MCP_CLIENT <--> MCPSRV["MCP server"]
-    MCP_CLIENT --> AGENT
 
     AGENT --> VAL["Validate"]
     VAL -->|"repair ×2"| AGENT
