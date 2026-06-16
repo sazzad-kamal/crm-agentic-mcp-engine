@@ -33,12 +33,12 @@ flowchart TB
 
     AGENT -->|"emits candidate answer<br/>with [E#]/[D#]/[G#] tags"| VAL["Validate<br/>(deterministic<br/>regex + Pydantic)"]
     VAL -->|"fail · retries left<br/>(Reflexion repair, max 2)"| AGENT
-    VAL -->|"fail · max repairs hit"| FB["Fallback<br/>(evidence-only<br/>degraded answer)"]
+    VAL -->|"fail · max repairs hit"| FB["Fallback"]
     VAL -->|"pass → final answer"| RESP
     VAL -->|pass| ACT["Action"] & FU["Followup"]
     ACT -.->|"suggested next step"| RESP
     FU -.->|"follow-up prompts"| RESP
-    FB -->|degraded answer| RESP
+    FB -->|"evidence-only degraded answer"| RESP
 
     RESP(["Response"])
 
