@@ -28,7 +28,7 @@ flowchart TB
     Q(("User<br/>Question")) --> AGENT["Agent<br/>(Claude Sonnet 4.6 — ReAct loop)<br/>≤ 6 turns"]
 
     AGENT -->|"tool_use<br/>(single / parallel)"| MCP_CLIENT["MCP Client<br/>(JSON-RPC over HTTPS)"]
-    MCP_CLIENT <-.->|"6 JSON-Schema-<br/>contracted tools"| MCPSRV["standalone<br/>MCP server"]
+    MCP_CLIENT -.->|"6 JSON-Schema-<br/>contracted tools"| MCPSRV["standalone<br/>MCP server"]
     MCP_CLIENT -->|tool_result| AGENT
 
     AGENT -->|"emits candidate answer<br/>with [E#]/[D#]/[G#] tags"| VAL["Validate<br/>(deterministic<br/>regex + Pydantic)"]
@@ -65,7 +65,7 @@ flowchart TB
     Q(("User")) --> AGENT["Agent"]
 
     AGENT <--> MCP_CLIENT["MCP Client"]
-    MCP_CLIENT <--> MCPSRV["MCP server"]
+    MCP_CLIENT --> MCPSRV["MCP server"]
 
     AGENT --> VAL["Validate"]
     VAL -->|"repair ×2"| AGENT
@@ -126,8 +126,8 @@ flowchart TB
     end
 
     User --> UI
-    UI <-->|"HTTPS · SSE"| API
-    MC <-->|"JSON-RPC / HTTPS · results + [E#/D#/G#]"| TL
+    UI -->|"HTTPS · SSE"| API
+    MC -->|"JSON-RPC / HTTPS"| TL
     RW2 -->|"SQL · RAG · Graph"| DATA
     RW1 -.->|"LLM · traces"| SHARED
     RW2 -.->|"LLM · embed · traces"| SHARED
@@ -175,8 +175,8 @@ flowchart TB
     end
 
     User --> UI
-    UI <--> API
-    MC <--> TL
+    UI --> API
+    MC --> TL
     RW2 --> DATA
     RW1 -.-> SHARED
     RW2 -.-> SHARED
