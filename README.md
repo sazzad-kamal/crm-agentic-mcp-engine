@@ -85,13 +85,13 @@ flowchart TB
 
 </details>
 
-**5-node LangGraph + 1 standalone MCP server.** Two products from one codebase: the engine (web UI surface) consumes the MCP server over HTTP/SSE; the same MCP server is independently demoable in Claude Desktop via stdio. Six JSON-Schema-contracted tools serve as the protocol surface — `sql_query`, `sql_compare`, `sql_trend`, `sql_health`, `rag_search`, `graph_query` — over DuckDB, LlamaIndex, and Neo4j.
+**5-node LangGraph + 1 standalone MCP server.** Two products from one codebase: the engine (web UI surface) consumes the MCP server over HTTP/SSE; the same MCP server is independently demoable in Claude Desktop via stdio. Six JSON-Schema-contracted tools serve as the protocol surface — `sql_query`, `sql_compare`, `sql_trend`, `sql_health`, `rag_search`, `graph_query` — over Postgres, LlamaIndex, and Neo4j.
 
 > Examples: "Show Q1 deals" → `sql_query` · "Q1 vs Q2 revenue" → `sql_compare` · "Revenue trend by month" → `sql_trend` · "Acme's health score" → `sql_health` · "How do I import contacts?" → `rag_search` · "Who is connected to our competitors?" → `graph_query` · "Acme renewal: under-used features + doc recommendations + committee minus competitors?" → **parallel calls to sql_query + rag_search + graph_query** (cross-source).
 
 ### Deployment & system topology
 
-The same logical design, deployed: the engine and the MCP server run as **separate Railway services** (process isolation, independent scale); retrieval and graph live in **managed Qdrant Cloud and Neo4j Aura**; the SQL store is an **in-process DuckDB** loaded from data baked into the MCP image. The MCP boundary is JSON-RPC over HTTPS, carrying tool calls one way and `{result, citations[E#/D#/G#]}` back.
+The same logical design, deployed: the engine and the MCP server run as **separate Railway services** (process isolation, independent scale); retrieval, graph, and SQL live in **managed Qdrant Cloud, Neo4j Aura, and Neon Postgres**. The MCP boundary is JSON-RPC over HTTPS, carrying tool calls one way and `{result, citations[E#/D#/G#]}` back.
 
 ```mermaid
 flowchart TB
@@ -110,11 +110,10 @@ flowchart TB
 
     subgraph RW2["MCP server · Railway (separate service)"]
         TL["6 JSON-Schema tools · guards · per-tool TTL cache"]
-        DUCK[("DuckDB — in-process<br/>baked CSVs · E#")]
-        TL --> DUCK
     end
 
     subgraph DATA["Managed data stores"]
+        PG[("Neon<br/>Postgres · E#")]
         QDR[("Qdrant Cloud<br/>doc vectors · D#")]
         NEO[("Neo4j Aura<br/>graph · G#")]
     end
@@ -129,6 +128,7 @@ flowchart TB
     User --> UI
     UI <-->|"HTTPS · SSE"| API
     MC <-->|"JSON-RPC / HTTPS · results + [E#/D#/G#]"| TL
+    TL -->|SQL| PG
     TL -->|RAG| QDR
     TL -->|Graph| NEO
     AG -. LLM .-> CLA
@@ -253,7 +253,7 @@ flowchart LR
     PARSE --> CHK{"Write ops?"}
     CHK -->|yes| BLOCK
     CHK -->|no| LIM["Cap rows<br/>(LIMIT 1000)"]
-    LIM --> EXEC["Execute against<br/>DuckDB / Neo4j"]
+    LIM --> EXEC["Execute against<br/>Postgres / Neo4j"]
 ```
 
 - **SQL guard (sqlglot AST)**: blocks INSERT/DELETE/DROP/UPDATE/CREATE/ALTER/GRANT, blocks file-reading TVFs (`read_csv`), auto-injects `LIMIT 1000`
@@ -367,7 +367,7 @@ Different models for different task complexities:
 | **Tool protocol** | Model Context Protocol (MCP) | Industry-standard agent-tool boundary; portable to Claude Desktop |
 | **RAG** | LlamaIndex (vector + BM25 + reranker) | Hybrid retrieval winner from automated comparison |
 | **Graph DB** | Neo4j | Multi-hop entity traversal, Cypher queries |
-| **Analytics DB** | DuckDB | Columnar storage, fast aggregations, zero config |
+| **SQL DB** | Postgres (Neon) | Managed relational store for CRM data; read-only, sqlglot-guarded |
 | **Evaluation** | RAGAS + LLM-as-Judge | Faithfulness, relevancy, correctness, action/followup quality |
 | **Backend (engine)** | FastAPI | Async, OpenAPI docs, Pydantic validation |
 | **Streaming** | Server-Sent Events | Real-time token + tool_call delta streaming |
