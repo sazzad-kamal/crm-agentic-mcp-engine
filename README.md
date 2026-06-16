@@ -131,12 +131,8 @@ flowchart TB
     TL -->|SQL| PG
     TL -->|RAG| QDR
     TL -->|Graph| NEO
-    AG -. LLM .-> CLA
-    AG -. LLM .-> GPT
-    TL -. SQL/Cypher .-> CLA
-    TL -. embeds .-> EMB
-    AG -. traces .-> OBS
-    TL -. traces .-> OBS
+    RW1 -.->|"LLM · traces"| SHARED
+    RW2 -.->|"LLM · embed · traces"| SHARED
 ```
 
 ---
