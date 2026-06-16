@@ -28,7 +28,7 @@ flowchart TB
     Q(("User<br/>Question")) --> AGENT["Agent<br/>(Claude Sonnet 4.6 — ReAct loop)<br/>≤ 6 turns"]
 
     AGENT -->|"tool_use<br/>(single / parallel)"| MCP_CLIENT["MCP Client<br/>(JSON-RPC over HTTP)"]
-    MCP_CLIENT <-.->|"6 JSON-Schema-<br/>contracted tools"| MCPSRV[("standalone<br/>MCP server<br/>crm-mcp-server")]
+    MCP_CLIENT <-.->|"6 JSON-Schema-<br/>contracted tools"| MCPSRV[["standalone<br/>MCP server<br/>crm-mcp-server"]]
     MCP_CLIENT -->|tool_result| AGENT
 
     AGENT -->|"emits candidate answer<br/>with [E#]/[D#]/[G#] tags"| VAL["Validate<br/>(deterministic<br/>regex + Pydantic)"]
@@ -36,8 +36,8 @@ flowchart TB
     VAL -->|"fail · max repairs hit"| FB["Fallback"]
     VAL -->|"pass → final answer"| RESP
     VAL -->|pass| ACT["Action"] & FU["Followup"]
-    ACT -.->|"suggested next step"| RESP
-    FU -.->|"follow-up prompts"| RESP
+    ACT -->|"suggested next step"| RESP
+    FU -->|"follow-up prompts"| RESP
     FB -->|"evidence-only degraded answer"| RESP
 
     RESP(["Response"])
