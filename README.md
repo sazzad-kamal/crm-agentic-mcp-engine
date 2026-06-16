@@ -35,12 +35,12 @@ flowchart TB
     VAL -->|"fail · retries left<br/>(Reflexion repair, max 2)"| AGENT
     VAL -->|"fail · max repairs hit"| FB["Fallback<br/>(evidence-only<br/>degraded answer)"]
     VAL -->|"pass → final answer"| RESP
-    VAL -->|pass| ACT["Action<br/>(suggested next step)"] & FU["Followup<br/>(follow-up prompts)"]
-    ACT -.attach.-> RESP
-    FU -.attach.-> RESP
+    VAL -->|pass| ACT["Action"] & FU["Followup"]
+    ACT -.->|"suggested next step"| RESP
+    FU -.->|"follow-up prompts"| RESP
     FB -->|degraded answer| RESP
 
-    RESP(["Response<br/>final answer + action + follow-ups"])
+    RESP(["Response"])
 
     MCPSRV -.->|sql_query<br/>sql_compare<br/>sql_trend<br/>sql_health| DB[("DuckDB<br/>CRM data · E#")]
     MCPSRV -.->|rag_search| VS[("Qdrant · LlamaIndex<br/>hybrid: vector + BM25 · D#")]
