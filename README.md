@@ -40,7 +40,7 @@ flowchart TB
     FU -.attach.-> RESP
     FB -->|degraded answer| RESP
 
-    RESP(["Streamed response (SSE)<br/>final answer + action + follow-ups"])
+    RESP(["Response<br/>final answer + action + follow-ups"])
 
     MCPSRV -.->|sql_query<br/>sql_compare<br/>sql_trend<br/>sql_health| DB[("DuckDB<br/>CRM data · E#")]
     MCPSRV -.->|rag_search| VS[("Qdrant · LlamaIndex<br/>hybrid: vector + BM25 · D#")]
