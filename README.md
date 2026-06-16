@@ -139,6 +139,51 @@ flowchart TB
     style BROWSER fill:#dcfce7,stroke:#16a34a,color:#14532d
 ```
 
+<details>
+<summary><b>Deployment at a glance</b> — the spine (full detail above)</summary>
+
+```mermaid
+flowchart TB
+    User(("User"))
+
+    subgraph BROWSER["Browser"]
+        UI["React UI"]
+    end
+
+    subgraph RW1["Engine service · Railway"]
+        API["FastAPI"]
+        AG["LangGraph agent"]
+        MC["MCP client"]
+        API --> AG --> MC
+    end
+
+    subgraph RW2["MCP server · Railway"]
+        TL["6 tools"]
+    end
+
+    subgraph DATA["Managed data stores"]
+        PG[("Neon")]
+        QDR[("Qdrant")]
+        NEO[("Neo4j")]
+    end
+
+    subgraph SHARED["Shared services"]
+        CLA["Claude"]
+        GPT["GPT"]
+        EMB["Embeddings"]
+        OBS["LangSmith"]
+    end
+
+    User --> UI
+    UI <--> API
+    MC <--> TL
+    RW2 --> DATA
+    RW1 -.-> SHARED
+    RW2 -.-> SHARED
+```
+
+</details>
+
 ---
 
 ## ReAct + Reflexion — the two named patterns
