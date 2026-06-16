@@ -98,7 +98,7 @@ flowchart TB
     User(("User"))
 
     subgraph BROWSER["Browser"]
-        UI["React UI — chat + data panels (SSE)"]
+        UI["React UI — chat + data panels"]
     end
 
     subgraph RW1["Engine service · Railway"]
@@ -133,6 +133,12 @@ flowchart TB
     TL -->|Graph| NEO
     RW1 -.->|"LLM · traces"| SHARED
     RW2 -.->|"LLM · embed · traces"| SHARED
+
+    style RW1 fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    style RW2 fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    style DATA fill:#f3f4f6,stroke:#6b7280,color:#374151
+    style SHARED fill:#f3f4f6,stroke:#6b7280,color:#374151
+    style BROWSER fill:#dcfce7,stroke:#16a34a,color:#14532d
 ```
 
 ---
