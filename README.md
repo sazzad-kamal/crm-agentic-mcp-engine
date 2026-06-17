@@ -199,12 +199,12 @@ flowchart LR
     R[Reason] --> A[Act<br/>tool_use]
     A --> O[Observe<br/>tool_result]
     O --> R
-    R -.->|enough evidence| FA[Final Answer]
+    R -.->|enough evidence| FA[Candidate answer]
 ```
 
 ### Reflexion loop (outer — Shinn et al., 2023)
 
-After the agent produces a final answer, a deterministic Validate gate (regex + Pydantic, sub-millisecond) checks:
+After the agent produces a candidate answer, a deterministic Validate gate (regex + Pydantic, sub-millisecond) checks:
 - Structure: `Answer` + `Evidence` sections parse
 - Tag presence: every claim ends with `[E#]/[D#]/[G#]`
 - Tag-to-citation cross-check: every cited id matches a tool-returned citation
@@ -214,7 +214,7 @@ On failure, the gate emits a structured critique that names every failure mode a
 
 ```mermaid
 flowchart LR
-    FA[Final Answer] --> V{Deterministic<br/>Validate gate}
+    FA[Candidate answer] --> V{Deterministic<br/>Validate gate}
     V -->|ok| AF[Action + Followup]
     V -->|fail| C[Critic emits<br/>structured critique]
     C --> R["Agent revises<br/>(no tools)"]
