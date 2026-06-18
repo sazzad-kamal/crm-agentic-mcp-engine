@@ -1,6 +1,6 @@
 # Scratch — whiteboard practice (NOT part of the docs)
 
-Exact same as the main D1 diagram — Action/Followup removed, HITL action tool + write target added. Nothing else changed.
+Default generic template: same as D1, with **Action/Followup removed**, **graph/Neo4j removed** (add only if the domain has relationships), and a **HITL action tool + write target** added.
 
 ## Full
 
@@ -9,10 +9,10 @@ flowchart TB
     Q(("User<br/>Question")) --> AGENT["Agent<br/>(Claude Sonnet 4.6 — ReAct loop)<br/>≤ 6 turns"]
 
     AGENT -->|"tool_use<br/>(single / parallel)"| MCP_CLIENT["MCP Client<br/>(JSON-RPC over HTTPS)"]
-    MCP_CLIENT -.->|"6 JSON-Schema-<br/>contracted tools"| MCPSRV["standalone<br/>MCP server"]
+    MCP_CLIENT -.->|"JSON-Schema-<br/>contracted tools"| MCPSRV["standalone<br/>MCP server"]
     MCP_CLIENT -->|tool_result| AGENT
 
-    AGENT -->|"emits candidate answer<br/>with [E#]/[D#]/[G#] tags"| VAL["Validate<br/>(deterministic<br/>regex + Pydantic)"]
+    AGENT -->|"emits candidate answer<br/>with [E#]/[D#] tags"| VAL["Validate<br/>(deterministic<br/>regex + Pydantic)"]
     VAL -->|"fail · retries left<br/>(Reflexion repair, max 2)"| AGENT
     VAL -->|"fail · max repairs hit"| FB["Fallback"]
     VAL -->|"pass → final answer"| RESP
@@ -22,7 +22,6 @@ flowchart TB
 
     MCPSRV -.->|sql_query<br/>sql_compare<br/>sql_trend<br/>sql_health| DB[("SQL<br/>CRM data · E#")]
     MCPSRV -.->|rag_search| VS[("Qdrant · LlamaIndex<br/>hybrid: vector + BM25 · D#")]
-    MCPSRV -.->|graph_query| N4[("Neo4j<br/>graph · G#")]
 
     MCPSRV -.->|"grant_access (write)"| GATE{"HITL<br/>human approval"}
     GATE -->|approved| WR[("Identity / Access<br/>system · write")]
@@ -36,7 +35,7 @@ flowchart TB
     class AGENT agent
     class MCP_CLIENT,MCPSRV tool
     class VAL,FB,RESP response
-    class Q,DB,VS,N4,WR boundary
+    class Q,DB,VS,WR boundary
     class GATE gate
 ```
 
@@ -59,10 +58,9 @@ flowchart TB
 
     MCPSRV --> DB[("SQL")]
     MCPSRV --> VS[("Qdrant")]
-    MCPSRV --> N4[("Neo4j")]
 
     MCPSRV --> GATE{"HITL"}
     GATE --> WR[("Identity / Access · write")]
 ```
 
-Only two edits vs D1: **removed** Action + Followup nodes; **added** the `grant_access` write tool → **HITL** gate → **Identity / Access · write** target. Reads stay ungated; only the write passes through the human-approval gate.
+Edits vs D1: **removed** Action + Followup; **removed** graph/Neo4j (add back only if relationships matter); **added** `grant_access` write tool → **HITL** gate → **Identity / Access · write**. Default sources = SQL + RAG. Reads ungated; only the write passes the human gate.
