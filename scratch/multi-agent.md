@@ -1,6 +1,6 @@
 # Scratch — multi-agent variant (NOT part of the docs)
 
-Same scaffold, expanded: a **Planner** delegates to **scoped React worker agents**, which hit the **same shared MCP server**. Guardrails (Validate → Fallback) unchanged. This is the Q18 "how I'd go multi-agent" picture.
+Same scaffold, expanded: a **Planner** delegates to **scoped React worker agents**, each with its own **MCP client** hitting the **one shared MCP server**. Guardrails (Validate → Fallback) unchanged. This is the Q18 "how I'd go multi-agent" picture.
 
 ## Full
 
@@ -13,8 +13,10 @@ flowchart TB
     W1 -->|results| PL
     W2 -->|results| PL
 
-    W1 -.->|sql tools| MCPSRV["shared<br/>MCP server"]
-    W2 -.->|rag tool| MCPSRV
+    W1 <-->|"tool_use / result"| MC1["MCP Client"]
+    W2 <-->|"tool_use / result"| MC2["MCP Client"]
+    MC1 -.->|JSON-RPC / HTTPS| MCPSRV["shared<br/>MCP server"]
+    MC2 -.->|JSON-RPC / HTTPS| MCPSRV
 
     PL -->|"synthesized answer<br/>with [E#]/[D#]"| VAL["Validate<br/>(deterministic<br/>regex + Pydantic)"]
     VAL -->|"fail · retries left<br/>(repair, max 2)"| PL
@@ -33,7 +35,7 @@ flowchart TB
     classDef boundary fill:#f3f4f6,stroke:#6b7280,color:#374151
 
     class PL,W1,W2 agent
-    class MCPSRV tool
+    class MC1,MC2,MCPSRV tool
     class VAL,FB,RESP response
     class Q,DB,VS boundary
 ```
@@ -49,8 +51,10 @@ flowchart TB
     W1 --> PL
     W2 --> PL
 
-    W1 --> MCPSRV["MCP server"]
-    W2 --> MCPSRV
+    W1 <--> MC1["MCP Client"]
+    W2 <--> MC2["MCP Client"]
+    MC1 --> MCPSRV["MCP server"]
+    MC2 --> MCPSRV
 
     PL --> VAL["Validate"]
     VAL -->|"repair ×2"| PL
@@ -67,6 +71,6 @@ flowchart TB
 ## The points this diagram makes (Q18)
 - **What makes it multi-agent = multiple ReAct loops** (the workers), not the tools. Each worker is its own reasoning loop, scoped to a tool subset.
 - **Planner** decomposes → delegates → synthesizes. A *router* if routing is simple; a *ReAct planner* if the plan must adapt to results.
-- **Shared MCP server** = the same tool layer. Multi-agent is **additive** — add agents in front, don't rebuild the tools. (This is why the standalone MCP server makes it cheap.)
+- **Each worker has its own MCP client; the MCP server is shared.** Multi-agent is **additive** — add agents (and their clients) in front of the same tool server, don't rebuild the tools. (This is why the standalone MCP server makes it cheap.)
 - **Same guardrails** — Validate → Fallback unchanged; the planner's synthesized answer still passes the deterministic gate.
 - **When to use** — only when one agent can't reliably pick among too many tools, or the task fans out into independent deep sub-tasks. Otherwise stay single-agent.
