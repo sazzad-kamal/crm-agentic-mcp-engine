@@ -1,26 +1,31 @@
 # Scratch — whiteboard practice (NOT part of the docs)
 
-Generic agentic re-skin + HITL action tool. Example domain: IT / access copilot (answers helpdesk questions, can grant access with human approval).
+Generic agentic re-skin + HITL action tool. Same shape as the main D1 diagram, with Action/Followup dropped and an action tool gated by human approval. Example domain: IT / access copilot.
+
+## Full
 
 ```mermaid
 flowchart TB
-    U(("User")) --> AG["Agent<br/>ReAct · max 6 turns"]
+    Q(("User<br/>Question")) --> AGENT["Agent<br/>(ReAct loop)<br/>≤ 6 turns"]
 
-    AG <-->|"tool_use / result"| MC["MCP Client"]
-    MC --> SRV["MCP server"]
+    AGENT -->|"tool_use<br/>(single / parallel)"| MCP_CLIENT["MCP Client<br/>(JSON-RPC over HTTPS)"]
+    MCP_CLIENT -.->|"JSON-Schema-<br/>contracted tools"| MCPSRV["standalone<br/>MCP server"]
+    MCP_CLIENT -->|tool_result| AGENT
 
-    AG -->|"candidate answer<br/>+ citations"| VAL["Validate<br/>regex + Pydantic"]
-    VAL -->|"repair x2"| AG
-    VAL -->|"max repairs"| FB["Fallback"]
-    VAL -->|"pass"| RESP(["Response"])
-    FB --> RESP
+    AGENT -->|"emits candidate answer<br/>with citations"| VAL["Validate<br/>(deterministic<br/>regex + Pydantic)"]
+    VAL -->|"fail · retries left<br/>(Reflexion repair, max 2)"| AGENT
+    VAL -->|"fail · max repairs hit"| FB["Fallback"]
+    VAL -->|"pass → final answer"| RESP
+    FB -->|"evidence-only degraded answer"| RESP
 
-    SRV -->|"ticket_lookup<br/>ticket_analytics"| DB[("Ticket / Asset DB")]
-    SRV -->|"kb_search"| KB[("IT Knowledge Base")]
-    SRV -->|"access_query"| GR[("Access Graph")]
+    RESP(["Response"])
 
-    SRV -->|"grant_access (write)"| GATE{"HITL<br/>human approval"}
-    GATE -->|"approved"| WR[("Identity / Access<br/>system - write")]
+    MCPSRV -.->|"ticket_lookup<br/>ticket_analytics"| DB[("Ticket / Asset DB")]
+    MCPSRV -.->|"kb_search"| VS[("IT Knowledge Base")]
+    MCPSRV -.->|"access_query"| N4[("Access Graph")]
+
+    MCPSRV -.->|"grant_access (write)"| GATE{"HITL<br/>human approval"}
+    GATE -->|approved| WR[("Identity / Access<br/>system · write")]
 
     classDef agent fill:#fef3c7,stroke:#d97706,color:#78350f
     classDef tool fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
@@ -28,11 +33,36 @@ flowchart TB
     classDef boundary fill:#f3f4f6,stroke:#6b7280,color:#374151
     classDef gate fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
 
-    class AG agent
-    class MC,SRV tool
+    class AGENT agent
+    class MCP_CLIENT,MCPSRV tool
     class VAL,FB,RESP response
-    class U,DB,KB,GR,WR boundary
+    class Q,DB,VS,N4,WR boundary
     class GATE gate
 ```
 
-**Base** = D1 minus Action/Followup, guardrails intact. **Re-skin** = swap sources/tools, split SQL into query + analytics, drop graph if no relationships. **Variation** = if it acts, add action tool -> HITL -> write (reads stay ungated).
+## Skeleton (spine)
+
+```mermaid
+flowchart TB
+    Q(("User")) --> AGENT["Agent"]
+
+    AGENT <--> MCP_CLIENT["MCP Client"]
+    MCP_CLIENT --> MCPSRV["MCP server"]
+
+    AGENT --> VAL["Validate"]
+    VAL -->|"repair ×2"| AGENT
+    VAL --> FB["Fallback"]
+    VAL -->|pass| RESP
+    FB --> RESP
+
+    RESP(["Response"])
+
+    MCPSRV --> DB[("Ticket DB")]
+    MCPSRV --> VS[("Knowledge Base")]
+    MCPSRV --> N4[("Access Graph")]
+
+    MCPSRV --> GATE{"HITL"}
+    GATE --> WR[("Access · write")]
+```
+
+**Base** = D1 minus Action/Followup, guardrails intact. **Re-skin** = swap sources/tools, split SQL into query + analytics, drop graph if no relationships. **Variation** = if it acts, add action tool → HITL → write (reads stay ungated).
