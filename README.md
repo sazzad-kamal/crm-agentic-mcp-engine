@@ -224,6 +224,24 @@ flowchart LR
 
 **Why deterministic Validate?** The agent that just wrote the answer is the worst auditor of its own work — same context, same blind spots. A deterministic critic catches mechanical failures (missing tags, invented citations, naked claims) the LLM would miss. Sub-millisecond cost; no token spend; fully testable.
 
+**Why max 2 repairs — why not more to get a better answer?** Because **more repairs can't make the answer better.** Repair runs **tools-unbound** — it only re-words the *existing* evidence; it cannot gather new evidence. So an ungrounded claim has exactly two causes, and only one is a repair's job:
+
+```mermaid
+flowchart TB
+    Q["Claim fails Validate<br/>(ungrounded)"] --> WHY{"Why ungrounded?"}
+    WHY -->|"wording doesn't match<br/>the retrieved evidence"| REP["Repair — re-word to match<br/>evidence (tools unbound)"]
+    WHY -->|"the evidence is<br/>missing entirely"| RET["Needs more *retrieval* —<br/>the ReAct loop's job<br/>(broaden top_k / hop_depth)"]
+    REP -->|"fixed in ≤ 2 tries"| OK["Grounded"]
+    REP -->|"still ungrounded after 2"| FB["Fallback — evidence-only.<br/>A 3rd/4th re-word cannot add<br/>evidence that isn't there."]
+
+    classDef gate fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef ok fill:#dcfce7,stroke:#16a34a,color:#14532d
+    class REP,RET gate
+    class OK ok
+```
+
+If a claim can't be grounded in two re-wordings, **the evidence simply isn't there** — a 3rd or 4th attempt re-words the same unsupportable claim, which is why **RAGAS faithfulness flattened after the 2nd repair** in tuning. The right lever for a *missing-evidence* answer is more **retrieval** (the ReAct loop, ≤ 6 turns), not more **repair**. So 2 captures the recoverable grounding errors; beyond that the system **falls back honestly** rather than burn latency — each repair is a full model round-trip against the p95 ≤ 8s SLO.
+
 ---
 
 ## The 6 Tools
