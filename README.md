@@ -546,6 +546,8 @@ Different models for different task complexities:
 | **Embeddings** | MCP — rag_search | text-embedding-3-small | Vector similarity for retrieval |
 | **Eval judges** | CI eval harness | GPT-5.4-mini | Structured scoring on Action / Followup quality |
 
+**Provider-portable.** The agent model is a config value (`AGENT_MODEL` env var) accessed through LangChain's chat abstraction — so the engine runs on the Anthropic API today and ports to **AWS Bedrock** (Claude is first-class there) or **Claude Platform on AWS** with a client/config swap, not a redesign. The MCP tool server, guardrails, Validate gate, and eval harness are all **model-agnostic** — they don't change when the model backend does.
+
 ### Stack
 
 | Component | Technology | Why |
