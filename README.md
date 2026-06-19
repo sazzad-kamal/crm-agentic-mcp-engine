@@ -378,9 +378,44 @@ if flags:
     logger.warning("[sanitize] neutralized prompt-injection: %s", flags)
 ```
 
-### Cost engineering — prompt caching cuts agent loop tokens ~85%
+### Cost engineering — prompt caching cuts token cost ~85% across multi-turn loops
 
-The agent's system prompt + 6 tool schemas are cache-stable across turns within Anthropic's 5-minute ephemeral cache window. Cache control is wired on the system content block + last tool definition. Effect on a typical 3-turn cross-source question: first turn pays full token cost; turns 2-3 pay ~10% (cache hits). Per-tool TTL LRU cache (60s for SQL/Graph, 300s for RAG, 30s for health) on the MCP server side reduces redundant tool execution when the same parameters recur within a session — most valuable for frequent short-TTL calls like sql_health and for cross-node reuse (Action + Followup querying similar context).
+**Why it works in a loop:** the Messages API is **stateless** — every turn re-sends the *entire* prompt (system prompt + all 6 tool schemas + the conversation so far). In a multi-turn ReAct loop, the **system prompt + tool schemas are large and identical on every turn**. Without caching you pay full input price for that static prefix on turn 1, turn 2, turn 3… With prompt caching you pay for it **once**, then re-read it at **~10% of input price** on every subsequent turn.
+
+```mermaid
+flowchart TB
+    subgraph CALL["Each turn re-sends the full prompt (stateless API)"]
+        direction LR
+        P["Static prefix<br/>system + 6 tool schemas"] --- BP(["cache_control<br/>breakpoint"]) --- DYN["Dynamic<br/>question + messages so far"]
+    end
+
+    CALL -.->|"prefix cached after turn 1"| T1
+    T1["Turn 1<br/>WRITE prefix · 1.25×"] --> T2["Turn 2<br/>READ · 0.1×"] --> T3["Turn 3<br/>READ · 0.1×"] --> TE["…"] --> T6["Turn 6<br/>READ · 0.1×"]
+
+    classDef stat fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef write fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef read fill:#dcfce7,stroke:#16a34a,color:#14532d
+    class P,BP,DYN stat
+    class T1 write
+    class T2,T3,TE,T6 read
+```
+
+**Mechanics:**
+- `cache_control: {"type": "ephemeral"}` marks the end of the static prefix. Render order is `tools → system → messages`, so a breakpoint on the last tool/system block caches **tools + system** together; the volatile question goes *after* it.
+- **Pricing:** a cache **write** ≈ 1.25× input price; a cache **read** ≈ 0.1× input price (~90% off). Break-even is the **2nd turn**.
+- **5-minute TTL**, refreshed on each hit — comfortably covers one multi-turn question. Minimum cacheable prefix on Sonnet is **2,048 tokens**; the system prompt + 6 tool schemas clear that.
+
+**Worked example — a 6-turn cross-source question**, static prefix ≈ 2.5K tokens:
+
+| | Without caching | With caching |
+|---|---|---|
+| Turn 1 | 2.5K × 1.0 | 2.5K × **1.25** (write) |
+| Turns 2–6 | 2.5K × 1.0 (×5) | 2.5K × **0.10** each (read) |
+| **Prefix input cost** | **15.0K** | **≈ 4.4K** |
+
+That's **~70% off the prefix** at 6 turns, approaching **~90%** as loops run longer (every extra turn is a 10%-price read). The reported ~85% is the blended saving across typical multi-turn traffic.
+
+Separately, a **per-tool TTL LRU cache** on the MCP server (60s SQL/graph · 300s RAG · 30s health) skips redundant *tool execution* when the same parameters recur within a session.
 
 ---
 
