@@ -11,6 +11,19 @@
 
 ---
 
+## Contents
+
+- **[The Problem](#the-problem)**
+- **[Architecture](#architecture)** · [deployment topology](#deployment--system-topology)
+- **[ReAct + Reflexion](#react--reflexion--the-two-named-patterns)** · [why 6 turns](#react-loop-inner--yao-et-al-2022) · [why max 2 repairs (measured)](#why-max-2-repairs-not-more)
+- **[The 6 Tools](#the-6-tools)**
+- **[Why MCP, not in-process tools](#why-mcp-not-in-process-tools)**
+- **[Grounding, Safety & Reliability](#grounding-safety-and-reliability)** · [PII & guardrails](#pii-protection-and-input-sanitization) · [prompt caching ~85%](#cost-engineering--prompt-caching-cuts-token-cost-85-across-multi-turn-loops)
+- **[Evaluation Framework](#evaluation-framework)** · [why correctness 0.35](#evaluation-framework) · [RAG config comparison](#rag-retrieval-strategy-comparison)
+- **[Tech Stack](#tech-stack)** · [provider-portable / Bedrock](#multi-model-strategy)
+
+---
+
 ## The Problem
 
 An account manager prepping Acme's renewal asks: *"Acme's renewal is at risk — which Act! Marketing Automation features are they under-using, what does the documentation recommend for those features, and who on their buying committee should I prioritize, excluding anyone connected to our competitors?"*
@@ -194,7 +207,11 @@ The agent operates as two cooperating loops drawn from published research.
 
 The agent **reasons**, **acts** (emits a tool call), **observes** the result, then reasons again. Cross-source decomposition emerges naturally — the agent emits parallel `tool_use` blocks when independent tools are needed; broadens retrieval (`top_k`, `hop_depth`) when evidence is thin.
 
-**Why a 6-turn cap?** It's derived, not arbitrary: **one turn per grounding source (SQL, RAG, graph) × a second pass each to broaden when evidence is thin = 3 × 2 = 6.** That's enough to query every source and broaden once. Past 6, the agent isn't gathering *new* evidence — it's looping — so it answers or falls back, which keeps the loop inside the **p95 ≤ 8s** budget (each turn is a full model round-trip).
+**Why a 6-turn cap?** It's derived, not arbitrary: **3 grounding sources (SQL, RAG, graph) × 2 passes each — an initial query + one *broaden* pass when evidence is thin = 6.** It's a *worst-case* budget. Parallel `tool_use` finishes most questions in 1–2 turns, but the cap has to cover the hardest case: queries that **can't** be parallelized because they *depend* on each other — e.g., *"committee minus competitors"* must find the competitors (graph) **first**, then filter. 6 lets the agent fully explore all three sources with a broaden pass even when it's forced to go sequentially. Past 6 it isn't gathering *new* evidence — it's looping — so it answers or falls back, keeping the loop inside the **p95 ≤ 8s** budget (each turn is a full model round-trip).
+
+**Why 2 passes per source, not 3?** One broaden is the **recall ↔ precision** sweet spot — a *second* widening pulls in irrelevant chunks that **hurt** grounding (the base window is already tuned: `top_k=10, rerank→5`). If one reasonable widen doesn't surface the evidence, it isn't in that source → fall back, don't keep widening.
+
+This is a **coverage bound** — derived from the source count — *not* a quality bound like the [repair cap](#why-max-2-repairs-not-more) below. There's no curve to tune: 6 either covers the sources or it doesn't. And 6 is a generous **ceiling**, not a tuned optimum — most questions finish well under it, so it rarely binds; if one ever hits the cap, that's a *fall-back* signal, not a *raise-the-cap* one. (The repair cap was the quality question — that's the one worth measuring.)
 
 ```mermaid
 flowchart LR
