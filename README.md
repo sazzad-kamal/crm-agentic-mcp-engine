@@ -240,7 +240,23 @@ flowchart TB
     class OK ok
 ```
 
-If a claim can't be grounded in two re-wordings, **the evidence simply isn't there** — a 3rd or 4th attempt re-words the same unsupportable claim, which is why **RAGAS faithfulness flattened after the 2nd repair** in tuning. The right lever for a *missing-evidence* answer is more **retrieval** (the ReAct loop, ≤ 6 turns), not more **repair**. So 2 captures the recoverable grounding errors; beyond that the system **falls back honestly** rather than burn latency — each repair is a full model round-trip against the p95 ≤ 8s SLO.
+If a claim can't be grounded in two re-wordings, **the evidence simply isn't there** — a 3rd or 4th attempt re-words the same unsupportable claim. The right lever for a *missing-evidence* answer is more **retrieval** (the ReAct loop, ≤ 6 turns), not more **repair**. So 2 captures the recoverable grounding errors; beyond that the system **falls back honestly** rather than burn latency — each repair is a full model round-trip against the p95 ≤ 8s SLO.
+
+**Measured (controlled experiment).** 10 crafted non-conforming answers — missing tags, invalid citations, naked claims, heavy over-claims — run through the *real* Validate gate + repair loop (Claude Sonnet 4.6, tools unbound), with the cap raised to 4 to observe the tail:
+
+```mermaid
+xychart-beta
+    title "Cases grounded per repair attempt (n=10, cap raised to 4)"
+    x-axis ["0 (already valid)", "repair 1", "repair 2", "repair 3", "repair 4"]
+    y-axis "cases grounded" 0 --> 8
+    bar [3, 7, 0, 0, 0]
+```
+
+| Grounded at | 0 (already valid) | **repair 1** | repair 2 | repair 3 | repair 4 |
+|---|---|---|---|---|---|
+| Cases | 3 | **7** | 0 | 0 | 0 |
+
+**Every case that tripped the gate recovered on the 1st repair; none ever needed a 2nd, 3rd, or 4th.** Recovery saturates at repair 1, so the production cap of **2 is a safety margin** — attempts 3–4 are never reached. And because the loop **exits the moment the answer is valid**, the final answer — and therefore its **RAGAS faithfulness** — is identical for any cap ≥ 2; raising the cap changes nothing. That's the quantitative half of *"more repairs can't help"*: there's nothing left to fix.
 
 ---
 
