@@ -224,7 +224,9 @@ flowchart LR
 
 **Why deterministic Validate?** The agent that just wrote the answer is the worst auditor of its own work — same context, same blind spots. A deterministic critic catches mechanical failures (missing tags, invented citations, naked claims) the LLM would miss. Sub-millisecond cost; no token spend; fully testable.
 
-**Why max 2 repairs — why not more to get a better answer?** Because **more repairs can't make the answer better.** Repair runs **tools-unbound** — it only re-words the *existing* evidence; it cannot gather new evidence. So an ungrounded claim has exactly two causes, and only one is a repair's job:
+### Why max 2 repairs (not more)?
+
+*Why not repair more to get a better answer?* Because **more repairs can't make the answer better.** Repair runs **tools-unbound** — it only re-words the *existing* evidence; it cannot gather new evidence. So an ungrounded claim has exactly two causes, and only one is a repair's job:
 
 ```mermaid
 flowchart TB
