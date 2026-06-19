@@ -192,7 +192,9 @@ The agent operates as two cooperating loops drawn from published research.
 
 ### ReAct loop (inner — Yao et al., 2022)
 
-The agent **reasons**, **acts** (emits a tool call), **observes** the result, then reasons again. Bounded at 6 turns per question. Cross-source decomposition emerges naturally — the agent emits parallel `tool_use` blocks when independent tools are needed; broadens retrieval (`top_k`, `hop_depth`) when evidence is thin.
+The agent **reasons**, **acts** (emits a tool call), **observes** the result, then reasons again. Cross-source decomposition emerges naturally — the agent emits parallel `tool_use` blocks when independent tools are needed; broadens retrieval (`top_k`, `hop_depth`) when evidence is thin.
+
+**Why a 6-turn cap?** It's derived, not arbitrary: **one turn per grounding source (SQL, RAG, graph) × a second pass each to broaden when evidence is thin = 3 × 2 = 6.** That's enough to query every source and broaden once. Past 6, the agent isn't gathering *new* evidence — it's looping — so it answers or falls back, which keeps the loop inside the **p95 ≤ 8s** budget (each turn is a full model round-trip).
 
 ```mermaid
 flowchart LR
@@ -339,6 +341,8 @@ flowchart LR
 
 - **SQL guard (sqlglot AST)**: blocks INSERT/DELETE/DROP/UPDATE/CREATE/ALTER/GRANT, blocks file-reading TVFs (`read_csv`), auto-injects `LIMIT 1000`
 - **Cypher guard (read-only enforcement)**: blocks CREATE/DELETE/DETACH/SET/REMOVE/MERGE/DROP/CALL/FOREACH; auto-injects `LIMIT 1000`
+
+*Why `LIMIT 1000`?* It caps the blast radius of a mis-generated query — without it, a bad `WHERE` could dump an entire table into the model's context (cost + latency blowup) or the response. 1000 rows is generous for analytical CRM questions while bounding the worst case, and the LLM reasons better over a bounded result set than tens of thousands of rows.
 
 ### PII protection and input sanitization
 
@@ -489,6 +493,8 @@ flowchart LR
 | | p95 Latency | ≤ 8s | Full pipeline |
 
 **Regression gate:** CI fails when RAGAS composite drops more than 0.05 absolute vs the baseline JSON.
+
+**Why correctness gates at 0.35 (not 0.85).** It's deliberate, not a compromise. RAGAS `answer_correctness` is a strict factual + semantic match against a *single* reference answer, so it heavily penalizes valid paraphrases, alternative phrasings, and extra-but-correct detail — a high bar would fail CI on answers that are *right but worded differently*. So **faithfulness (≥ 0.85) is the hard quality gate**; correctness is a **directional regression signal** (caught by the ±0.05 gate). That mirrors the system's actual guarantee — grounding is enforced; exact-wording correctness is measured, not claimed (see *grounded-but-wrong*, the eval's offline job).
 
 ### Why LLM-as-Judge over hard rules
 
