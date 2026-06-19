@@ -304,6 +304,80 @@ flowchart LR
 - **SQL guard (sqlglot AST)**: blocks INSERT/DELETE/DROP/UPDATE/CREATE/ALTER/GRANT, blocks file-reading TVFs (`read_csv`), auto-injects `LIMIT 1000`
 - **Cypher guard (read-only enforcement)**: blocks CREATE/DELETE/DETACH/SET/REMOVE/MERGE/DROP/CALL/FOREACH; auto-injects `LIMIT 1000`
 
+### PII protection and input sanitization
+
+The read-only guards above stop *writes*; PII protection stops *leaks*. Four guardrail layers run across the pipeline — input is sanitized before the agent, documents are PII-scrubbed at ingestion, the SQL boundary masks PII (alongside the read-only guard), and the output passes the deterministic citation gate.
+
+```mermaid
+flowchart TB
+    U(("User<br/>Question")) --> SAN["Input sanitization<br/>prompt-injection neutralize"]
+    SAN --> AG["Agent<br/>(ReAct loop)"]
+
+    AG <-->|"tool_use / result"| MC["MCP Client"]
+    MC -.->|"6 tools"| SRV["standalone<br/>MCP server"]
+
+    SRV -.->|"sql_* tools"| SQLG["SQL boundary<br/>read-only guard (sqlglot)<br/>+ PII masking"]
+    SQLG -.-> DB[("CRM SQL · E#")]
+
+    DOCS[("Product docs")] --> ING["Ingestion<br/>PII redaction"]
+    ING -.->|"scrub before embed"| VS[("Qdrant · D#")]
+    SRV -.->|"rag_search"| VS
+
+    AG -->|"candidate answer<br/>+ citations"| VAL["Validate<br/>output gate (citations)"]
+    VAL --> RESP(["Response"])
+
+    classDef guard fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
+    classDef agent fill:#fef3c7,stroke:#d97706,color:#78350f
+    classDef tool fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
+    classDef response fill:#dcfce7,stroke:#16a34a,color:#14532d
+    classDef boundary fill:#f3f4f6,stroke:#6b7280,color:#374151
+
+    class SAN,SQLG,ING,VAL guard
+    class AG agent
+    class MC,SRV tool
+    class RESP response
+    class U,DB,VS,DOCS boundary
+```
+
+| Layer | Where it runs | What it does |
+|---|---|---|
+| **Input sanitization** | engine input boundary (`api/chat.py` → `sanitize.py`) | strips control chars, caps length, neutralizes prompt-injection patterns before the agent sees them |
+| **Ingestion redaction** | MCP server (`rag/indexer.py` → `pii.scrub_text`) | scrubs embedded emails / phones / SSNs **before** chunking & embedding — PII never enters the vector store |
+| **SQL boundary masking** | MCP server (`sql/executor.py` → `pii.mask_rows`) | policy-driven masking of `email` / `phone`, free-text scrub of `notes`, before rows reach the LLM |
+| **Output gate** | engine (`validate`) | citation contract — every claim grounded, no naked claims |
+
+**Policy-driven, not blanket redaction.** In a CRM, contact *names* are frequently the legitimate answer ("who is on Acme's buying committee?"). So the default policy masks contact-*channel* PII (email, phone) the model never needs to reason over, scrubs free-text for embedded PII, and keeps names as the query subject. The policy is **data, not code** — default-deny (mask names too) is a one-line change. Regex-based today; the `mask_rows` / `scrub_text` seam swaps to **Microsoft Presidio** for production NER detection without touching callers.
+
+```python
+# crm_mcp_server/pii.py — the policy is data, not code
+DEFAULT_COLUMN_POLICY = {
+    "email": "mask_email",   # john.doe@acme.com -> j***@acme.com
+    "phone": "mask_phone",   # +1 (555) 123-4567 -> ***-***-4567
+    "notes": "scrub",        # redact embedded PII in free text
+    # names kept by default — they are the query subject; uncomment to mask:
+    # "first_name": "redact",
+}
+
+# sql/executor.py — masking sits beside the read-only guard at the SQL boundary
+def safe_execute(sql, conn):
+    guard = validate_sql(sql)                 # read-only / write-block
+    if not guard.is_safe:
+        return [], f"Query blocked: {guard.error}"
+    rows, error = execute_sql(guard.sql, conn)
+    if error is None and rows:
+        rows = mask_rows(rows)                # PII masked before rows reach the LLM
+    return rows, error
+```
+
+Input sanitization is the input counterpart to the output Validate gate — untrusted text is handled as **data, not instructions**:
+
+```python
+# backend/agent/sanitize.py — at the chat boundary, before the agent
+question, flags = sanitize_input(payload.question)   # neutralize injection patterns
+if flags:
+    logger.warning("[sanitize] neutralized prompt-injection: %s", flags)
+```
+
 ### Cost engineering — prompt caching cuts agent loop tokens ~85%
 
 The agent's system prompt + 6 tool schemas are cache-stable across turns within Anthropic's 5-minute ephemeral cache window. Cache control is wired on the system content block + last tool definition. Effect on a typical 3-turn cross-source question: first turn pays full token cost; turns 2-3 pay ~10% (cache hits). Per-tool TTL LRU cache (60s for SQL/Graph, 300s for RAG, 30s for health) on the MCP server side reduces redundant tool execution when the same parameters recur within a session — most valuable for frequent short-TTL calls like sql_health and for cross-node reuse (Action + Followup querying similar context).
