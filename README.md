@@ -517,7 +517,7 @@ Different models for different task complexities:
 | **Backend (engine)** | FastAPI | Async, OpenAPI docs, Pydantic validation |
 | **Streaming** | Server-Sent Events | Real-time token + tool_call delta streaming |
 | **Tracing** | LangSmith | Per-turn observability — agent → tool → Validate, with cost + latency per span |
-| **Checkpointing** | LangGraph `MemorySaver` | In-process state across turns within a session |
+| **Checkpointing** | LangGraph `PostgresSaver` | Durable conversation state across turns — survives restarts, multi-instance |
 
 ---
 
