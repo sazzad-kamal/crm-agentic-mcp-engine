@@ -395,42 +395,6 @@ flowchart TB
 | **Output gate** | engine (`validate`) | citation contract — every claim grounded, no naked claims |
 
 **Policy-driven, not blanket redaction.** In a CRM, contact *names* are frequently the legitimate answer ("who is on Acme's buying committee?"). So the default policy masks contact-*channel* PII (email, phone) the model never needs to reason over, scrubs free-text for embedded PII, and keeps names as the query subject. The policy is **data, not code** — default-deny (mask names too) is a one-line change. Regex-based today; the `mask_rows` / `scrub_text` seam swaps to **Microsoft Presidio** for production NER detection without touching callers.
-
-<details>
-<summary><b>Implementation</b> — policy-as-data masking + input sanitization</summary>
-
-```python
-# crm_mcp_server/pii.py — the policy is data, not code
-DEFAULT_COLUMN_POLICY = {
-    "email": "mask_email",   # john.doe@acme.com -> j***@acme.com
-    "phone": "mask_phone",   # +1 (555) 123-4567 -> ***-***-4567
-    "notes": "scrub",        # redact embedded PII in free text
-    # names kept by default — they are the query subject; uncomment to mask:
-    # "first_name": "redact",
-}
-
-# sql/executor.py — masking sits beside the read-only guard at the SQL boundary
-def safe_execute(sql, conn):
-    guard = validate_sql(sql)                 # read-only / write-block
-    if not guard.is_safe:
-        return [], f"Query blocked: {guard.error}"
-    rows, error = execute_sql(guard.sql, conn)
-    if error is None and rows:
-        rows = mask_rows(rows)                # PII masked before rows reach the LLM
-    return rows, error
-```
-
-Input sanitization is the input counterpart to the output Validate gate — untrusted text is handled as **data, not instructions**:
-
-```python
-# backend/agent/sanitize.py — at the chat boundary, before the agent
-question, flags = sanitize_input(payload.question)   # neutralize injection patterns
-if flags:
-    logger.warning("[sanitize] neutralized prompt-injection: %s", flags)
-```
-
-</details>
-
 ### Cost engineering — prompt caching cuts token cost ~85% across multi-turn loops
 
 **Why it works in a loop:** the Messages API is **stateless** — every turn re-sends the *entire* prompt (system prompt + all 6 tool schemas + the conversation so far). In a multi-turn ReAct loop, the **system prompt + tool schemas are large and identical on every turn**. Without caching you pay full input price for that static prefix on turn 1, turn 2, turn 3… With prompt caching you pay for it **once**, then re-read it at **~10% of input price** on every subsequent turn.
