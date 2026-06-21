@@ -300,7 +300,7 @@ LLMs are bad at arithmetic over JSON rows; this delegation pattern keeps the mat
 
 ## Why MCP (not in-process tools)
 
-The MCP server is a **separate process** (Anthropic's Model Context Protocol, JSON-RPC over stdio or HTTP). Two real engineering wins drove the choice:
+The MCP server is a **separate process** (Anthropic's Model Context Protocol, JSON-RPC over stdio or HTTP(S)). Two real engineering wins drove the choice:
 
 | Property | What it buys |
 |---|---|
@@ -309,7 +309,7 @@ The MCP server is a **separate process** (Anthropic's Model Context Protocol, JS
 
 Secondary benefits — portability across MCP-speaking clients (future optionality), independent deploy/scale, an auth boundary — are real but weren't the drivers; the immediate engineering value is reliability + correctness at the tool boundary.
 
-The cost is one network round-trip per tool call (or ~1 ms over stdio in local / Claude Desktop mode) and a separate process lifecycle to manage. Both are well-amortized: prompt-cached agent loops + per-tool TTL LRU cache mean most turns spend their latency budget in the actual SQL/Cypher/retrieval work, not the protocol.
+The cost is one network round-trip per tool call (or ~1 ms over stdio in local / Claude Desktop mode) and a separate process lifecycle to manage. Both are well-amortized: the per-tool TTL LRU cache skips redundant calls, and a round-trip is small next to the actual SQL/Cypher/retrieval work — so most turns spend their latency budget in the real work, not the protocol.
 
 ---
 
