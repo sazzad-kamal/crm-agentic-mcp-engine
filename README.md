@@ -393,7 +393,7 @@ flowchart TB
 | **Ingestion redaction** | MCP server, at ingestion | scrubs embedded PII (emails, phones) from docs before embedding — PII never enters the vector store |
 | **SQL boundary masking** | MCP server, SQL boundary | policy-driven masking of email / phone + free-text scrub, before rows reach the LLM |
 
-**Policy-driven, not blanket redaction.** In a CRM, contact *names* are often the legitimate answer ("who's on Acme's buying committee?") — so the default masks contact-*channel* PII (email, phone) the model never needs, scrubs free-text, and keeps names. The policy is **data, not code** — masking names too is a one-line change — and it's regex today, swappable to **Microsoft Presidio** for production NER detection.
+**Policy-driven, not blanket redaction.** In a CRM, contact *names* are often the legitimate answer ("who's on Acme's buying committee?") — so the default masks contact-*channel* PII (email, phone) the model never needs, scrubs free-text, and keeps names. The policy is **data, not code** — masking names too is a one-line change. Detection is **hybrid**: regex for pattern-based PII (email, phone) plus **Microsoft Presidio** NER for entities embedded in free text (names, locations, organizations).
 
 ---
 
