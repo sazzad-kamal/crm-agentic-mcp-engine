@@ -205,13 +205,11 @@ The agent operates as two cooperating loops drawn from published research.
 
 ### ReAct loop (inner — Yao et al., 2022)
 
-The agent **reasons** → **acts** (emits a tool call) → **observes** → reasons again. Cross-source decomposition emerges naturally: it emits parallel `tool_use` blocks for independent tools, and **broadens** retrieval (`top_k`, `hop_depth`) when evidence is thin.
+The agent **reasons** → **acts** (emits a tool call) → **observes** → reasons again. It emits parallel `tool_use` blocks for independent tools, and **broadens** retrieval (`top_k`, `hop_depth`) when evidence is thin.
 
-**Why a 6-turn cap?** Derived, not arbitrary: **3 grounding sources (SQL, RAG, graph) × 2 passes** (initial + one *broaden*) = 6. It's a **worst-case coverage budget** — parallel `tool_use` finishes most questions in 1–2 turns, but the cap must cover the hardest case: **dependent** queries that can't parallelize (e.g. *"committee minus competitors"* — find competitors in the graph **first**, then filter). Six lets the agent fully explore all three sources with a broaden pass even when forced to go sequentially. Past 6 it's **looping, not gathering** → it answers or falls back, staying inside **p95 ≤ 8s** (each turn is a full model round-trip). *(The 6 tools ≠ 6 turns: the four `sql_*` tools are specialized alternatives the agent picks between, not steps, so a cross-source question makes ~3 source calls — the match is coincidental.)*
+**Why a 6-turn cap?** A turn is one model round-trip. The cap is **3 sources (SQL, RAG, graph) × 2 passes** (a lookup + one wider retry). Normal questions finish in **1–2 turns** — independent sources fire in parallel; 6 is the ceiling for the worst case: three sources forced sequential, each needing a retry (e.g. *"committee minus competitors"* — find competitors first, then filter). Past 6 it's **looping, not gathering** → it falls back, staying inside **p95 ≤ 8s**. It's a **coverage bound, not a tuned number** — generous headroom that rarely binds; hitting it is a fall-back signal, not a reason to raise it.
 
-**Why 2 passes per source, not 3?** One broaden is the **recall ↔ precision** sweet spot — the base window is already tuned (`top_k=10, rerank→5`), and a second widening pulls in irrelevant chunks that **hurt** grounding. If one reasonable widen doesn't surface the evidence, it isn't in that source → **fall back, don't keep widening.**
-
-This is a **coverage bound** (derived from the source count) — *not* a quality bound like the [repair cap](#why-max-2-repairs-not-more) below. There's no curve to tune: 6 either covers the sources or it doesn't. It's a generous **ceiling** that rarely binds; **hitting it is a fall-back signal, not a raise-the-cap one.** *(The repair cap is the quality question — that's the one worth measuring.)*
+> *Asides: a 2nd widen would pull in junk that hurts grounding, so one retry is the limit. And 6 tools ≠ 6 turns — the four `sql_*` tools are alternatives, not steps. (The [repair cap](#why-max-2-repairs-not-more) is the quality question — that's the one worth measuring.)*
 
 ```mermaid
 flowchart LR
