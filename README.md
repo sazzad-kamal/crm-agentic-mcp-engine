@@ -294,7 +294,7 @@ The four `sql_*` tools each carry deterministic post-processing rather than retu
 - `sql_trend` returns `{direction, percent_change, volatility, period_changes}`
 - `sql_health` returns `{score, grade, components, insights}` from a weighted 6-factor formula (deal value [log], deal count, win rate, activity recency, pipeline coverage, renewal status)
 
-LLMs are bad at arithmetic over JSON rows; this delegation pattern keeps the math reliable and the agent's job to weave findings into a narrative.
+LLMs are bad at arithmetic over JSON rows; this delegation pattern keeps the math reliable — and leaves the agent to do what it's good at: weaving findings into a narrative.
 
 ---
 
