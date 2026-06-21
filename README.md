@@ -221,9 +221,8 @@ flowchart LR
 
 After the agent produces a candidate answer, a deterministic Validate gate (regex + Pydantic, sub-millisecond) checks:
 - Structure: `Answer` + `Evidence` sections parse
-- Tag presence: every claim ends with `[E#]/[D#]/[G#]`
+- Tag presence (no naked claims): every substantive sentence (≥ 5 words) ends with a `[E#]/[D#]/[G#]` tag
 - Tag-to-citation cross-check: every cited id matches a tool-returned citation
-- No naked claims: no sentence (≥ 5 words) without a tag
 
 On failure, the gate emits a structured critique that names every failure mode and lists the only citations the agent may use. The agent re-invokes **without tools bound** (so it physically cannot emit another `tool_use`) and rewrites the answer using only valid evidence. Max 2 repair retries; then fallback to a degraded evidence-only answer.
 
