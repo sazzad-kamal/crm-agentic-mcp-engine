@@ -507,7 +507,7 @@ Different models for different task complexities:
 | Component | Technology | Why |
 |---|---|---|
 | **Orchestration** | LangGraph | Stateful workflows, conditional edges, checkpointing |
-| **Agent LLM bindings** | LangChain `ChatAnthropic` + `bind_tools()` | Native tool-calling + streaming of token and tool-call deltas |
+| **Agent LLM bindings** | LangChain `ChatAnthropic` + `bind_tools()` | Tool-calling binding + provider-swappable chat abstraction (Anthropic API ↔ Bedrock) |
 | **Tool protocol** | Model Context Protocol (MCP) | Industry-standard agent-tool boundary; portable to Claude Desktop |
 | **RAG** | LlamaIndex (vector + BM25 + reranker) | Hybrid retrieval winner from automated comparison |
 | **Vector DB** | Qdrant | Fast hybrid (dense + sparse) search, lean ops |
