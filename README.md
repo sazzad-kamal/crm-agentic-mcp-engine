@@ -440,7 +440,7 @@ flowchart LR
 
 **Regression gate:** CI fails when RAGAS composite drops more than 0.05 absolute vs the baseline JSON.
 
-**Why correctness gates at 0.35 (not 0.85).** It's deliberate, not a compromise. RAGAS `answer_correctness` is a strict factual + semantic match against a *single* reference answer, so it heavily penalizes valid paraphrases, alternative phrasings, and extra-but-correct detail — a high bar would fail CI on answers that are *right but worded differently*. So **faithfulness (≥ 0.85) is the hard quality gate**; correctness is a **directional regression signal** (caught by the ±0.05 gate). That mirrors the system's actual guarantee — grounding is enforced; exact-wording correctness is measured, not claimed (see *grounded-but-wrong*, the eval's offline job).
+**Why correctness gates at 0.35, not 0.85.** Deliberate. RAGAS `answer_correctness` scores against a **single** reference answer, so it penalizes valid paraphrases and extra-but-correct detail — a high bar would fail CI on answers that are *right, just worded differently*. So **faithfulness (≥ 0.85) is the hard gate**; correctness is a **directional signal** watched by the regression gate. **Grounding is enforced; exact-wording correctness is measured, not guaranteed.**
 
 ### Why LLM-as-Judge over hard rules
 
