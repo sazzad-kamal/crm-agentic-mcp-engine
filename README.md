@@ -18,7 +18,7 @@
 - **[ReAct + Reflexion](#react--reflexion--the-two-named-patterns)** · [why 6 turns](#react-loop-inner--yao-et-al-2022) · [why max 2 repairs (measured)](#why-max-2-repairs-not-more)
 - **[The 6 Tools](#the-6-tools)**
 - **[Why MCP, not in-process tools](#why-mcp-not-in-process-tools)**
-- **[Grounding, Safety & Reliability](#grounding-safety-and-reliability)** · [PII & guardrails](#pii-protection-and-input-sanitization) · [prompt caching ~85%](#cost-engineering--prompt-caching-cuts-token-cost-85-across-multi-turn-loops)
+- **[Grounding, Safety & Reliability](#grounding-safety-and-reliability)** · [PII & guardrails](#pii-protection-and-input-sanitization) · [prompt caching ~85%](#cost-engineering--prompt-caching-cuts-token-cost-85)
 - **[Evaluation Framework](#evaluation-framework)** · [why correctness 0.35](#evaluation-framework) · [RAG config comparison](#rag-retrieval-strategy-comparison)
 - **[Tech Stack](#tech-stack)** · [provider-portable / Bedrock](#multi-model-strategy)
 
@@ -398,44 +398,11 @@ flowchart TB
 
 ---
 
-### Cost engineering — prompt caching cuts token cost ~85% across multi-turn loops
+### Cost engineering — prompt caching cuts token cost ~85%
 
-**Why it works in a loop:** the Messages API is **stateless** — every turn re-sends the *entire* prompt (system prompt + all 6 tool schemas + the conversation so far). In a multi-turn ReAct loop, the **system prompt + tool schemas are large and identical on every turn**. Without caching you pay full input price for that static prefix on turn 1, turn 2, turn 3… With prompt caching you pay for it **once**, then re-read it at **~10% of input price** on every subsequent turn.
+The Messages API is **stateless** — every turn re-sends the **system prompt + 6 tool schemas**, which are large and identical each time. Caching pays for that static prefix **once** (a *write*, ~1.25× price), then re-reads it at **~0.1× (~90% off)** on every later turn — paying for itself by the 2nd turn. With the **5-minute cache TTL**, an active session reuses that one prefix across many turns *and* questions: **~70% on a single 6-turn question, ~85% sustained.**
 
-```mermaid
-flowchart TB
-    subgraph CALL["Each turn re-sends the full prompt (stateless API)"]
-        direction LR
-        P["Static prefix<br/>system + 6 tool schemas"] --- BP(["cache_control<br/>breakpoint"]) --- DYN["Dynamic<br/>question + messages so far"]
-    end
-
-    CALL -.->|"prefix cached after turn 1"| T1
-    T1["Turn 1<br/>WRITE prefix · 1.25×"] --> T2["Turn 2<br/>READ · 0.1×"] --> T3["Turn 3<br/>READ · 0.1×"] --> TE["…"] --> T6["Turn 6<br/>READ · 0.1×"]
-
-    classDef stat fill:#dbeafe,stroke:#2563eb,color:#1e3a8a
-    classDef write fill:#fef3c7,stroke:#d97706,color:#78350f
-    classDef read fill:#dcfce7,stroke:#16a34a,color:#14532d
-    class P,BP,DYN stat
-    class T1 write
-    class T2,T3,TE,T6 read
-```
-
-**Mechanics:**
-- `cache_control: {"type": "ephemeral"}` marks the end of the static prefix. Render order is `tools → system → messages`, so a breakpoint on the last tool/system block caches **tools + system** together; the volatile question goes *after* it.
-- **Pricing:** a cache **write** ≈ 1.25× input price; a cache **read** ≈ 0.1× input price (~90% off). Break-even is the **2nd turn**.
-- **5-minute TTL**, refreshed on each hit — comfortably covers one multi-turn question. Minimum cacheable prefix on Sonnet is **2,048 tokens**; the system prompt + 6 tool schemas clear that.
-
-**Worked example — a 6-turn cross-source question**, static prefix ≈ 2.5K tokens:
-
-| | Without caching | With caching |
-|---|---|---|
-| Turn 1 | 2.5K × 1.0 | 2.5K × **1.25** (write) |
-| Turns 2–6 | 2.5K × 1.0 (×5) | 2.5K × **0.10** each (read) |
-| **Prefix input cost** | **15.0K** | **≈ 4.4K** |
-
-That's **~70% off the prefix** for a single 6-turn question — the conservative floor. The bigger saving is at the **session** level: the prefix (system prompt + tool schemas) is **identical across every question**, so within the 5-minute cache window an active session reuses that one cached prefix across *all* its turns and questions — written once, read across twenty-plus turns. That pushes the sustained saving toward **~90%**; the reported **~85%** is the blended figure across active multi-turn use.
-
-Separately, a **per-tool TTL LRU cache** on the MCP server (60s SQL/graph · 300s RAG · 30s health) skips redundant *tool execution* when the same parameters recur within a session.
+A separate **per-tool TTL cache** on the MCP server skips redundant *tool execution* when the same parameters recur in a session.
 
 ---
 
