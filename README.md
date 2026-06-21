@@ -400,7 +400,7 @@ flowchart TB
 
 ### Cost engineering — prompt caching cuts token cost ~85%
 
-The Messages API is **stateless** — every turn re-sends the **system prompt + 6 tool schemas**, which are large and identical each time. Caching pays for that static prefix **once** (a *write*, ~1.25× price), then re-reads it at **~0.1× (~90% off)** on every later turn — paying for itself by the 2nd turn. With the **5-minute cache TTL**, an active session reuses that one prefix across many turns *and* questions: **~70% on a single 6-turn question, ~85% sustained.**
+The Messages API is **stateless** — every turn re-sends the **system prompt + 6 tool schemas**, which are large and identical each time. Caching **writes** that static prefix to cache once (~1.25× the **normal** price), then **reads** it back at **~0.1× (~90% off)** on every later turn — so it pays for itself by the 2nd turn. With the **5-minute cache TTL**, an active session reuses that one prefix across many turns *and* questions: **~70% on a single 6-turn question, ~85% sustained.**
 
 A separate **per-tool TTL cache** on the MCP server skips redundant *tool execution* when the same parameters recur in a session.
 
