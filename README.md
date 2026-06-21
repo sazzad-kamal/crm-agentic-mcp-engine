@@ -258,7 +258,7 @@ flowchart TB
 
 So 2 captures the recoverable grounding errors; beyond that the system **falls back honestly** rather than burn latency — each repair is a full model round-trip against the p95 ≤ 8s SLO.
 
-**Measured (controlled experiment).** 10 crafted non-conforming answers — missing tags, invalid citations, naked claims, heavy over-claims — run through the *real* Validate gate + repair loop (Claude Sonnet 4.6, tools unbound), with the cap raised to 4 to observe the tail:
+**Measured (controlled experiment).** 10 crafted non-conforming answers — missing tags and invalid citations — run through the *real* Validate gate + repair loop (Claude Sonnet 4.6, tools unbound), with the cap raised to 4 to observe the tail:
 
 | Grounded at | Cases | |
 |---|---|---|
