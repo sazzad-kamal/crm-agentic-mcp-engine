@@ -396,6 +396,9 @@ flowchart TB
 
 **Policy-driven, not blanket redaction.** In a CRM, contact *names* are frequently the legitimate answer ("who is on Acme's buying committee?"). So the default policy masks contact-*channel* PII (email, phone) the model never needs to reason over, scrubs free-text for embedded PII, and keeps names as the query subject. The policy is **data, not code** — default-deny (mask names too) is a one-line change. Regex-based today; the `mask_rows` / `scrub_text` seam swaps to **Microsoft Presidio** for production NER detection without touching callers.
 
+<details>
+<summary><b>Implementation</b> — policy-as-data masking + input sanitization</summary>
+
 ```python
 # crm_mcp_server/pii.py — the policy is data, not code
 DEFAULT_COLUMN_POLICY = {
@@ -425,6 +428,8 @@ question, flags = sanitize_input(payload.question)   # neutralize injection patt
 if flags:
     logger.warning("[sanitize] neutralized prompt-injection: %s", flags)
 ```
+
+</details>
 
 ### Cost engineering — prompt caching cuts token cost ~85% across multi-turn loops
 
