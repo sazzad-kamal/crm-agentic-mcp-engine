@@ -354,7 +354,7 @@ flowchart LR
 
 ### PII protection and input sanitization
 
-The read-only guards above stop *writes*; PII protection stops *leaks*. Four guardrail layers run across the pipeline — input is sanitized before the agent, documents are PII-scrubbed at ingestion, the SQL boundary masks PII (alongside the read-only guard), and the output passes the deterministic citation gate.
+The read-only guards above stop *writes*; these stop *leaks* — three guardrail layers across the pipeline, plus the output citation gate:
 
 ```mermaid
 flowchart TB
@@ -387,14 +387,13 @@ flowchart TB
     class U,DB,VS,DOCS boundary
 ```
 
-| Layer | Where it runs | What it does |
+| Layer | Where | What it does |
 |---|---|---|
-| **Input sanitization** | engine input boundary (`api/chat.py` → `sanitize.py`) | strips control chars, caps length, neutralizes prompt-injection patterns before the agent sees them |
-| **Ingestion redaction** | MCP server (`rag/indexer.py` → `pii.scrub_text`) | scrubs embedded emails / phones / SSNs **before** chunking & embedding — PII never enters the vector store |
-| **SQL boundary masking** | MCP server (`sql/executor.py` → `pii.mask_rows`) | policy-driven masking of `email` / `phone`, free-text scrub of `notes`, before rows reach the LLM |
-| **Output gate** | engine (`validate`) | citation contract — every claim grounded, no naked claims |
+| **Input sanitization** | engine input boundary | neutralizes prompt-injection patterns before the agent sees the input |
+| **Ingestion redaction** | MCP server, at ingestion | scrubs embedded PII (emails, phones) from docs before embedding — PII never enters the vector store |
+| **SQL boundary masking** | MCP server, SQL boundary | policy-driven masking of email / phone + free-text scrub, before rows reach the LLM |
 
-**Policy-driven, not blanket redaction.** In a CRM, contact *names* are frequently the legitimate answer ("who is on Acme's buying committee?"). So the default policy masks contact-*channel* PII (email, phone) the model never needs to reason over, scrubs free-text for embedded PII, and keeps names as the query subject. The policy is **data, not code** — default-deny (mask names too) is a one-line change. Regex-based today; the `mask_rows` / `scrub_text` seam swaps to **Microsoft Presidio** for production NER detection without touching callers.
+**Policy-driven, not blanket redaction.** In a CRM, contact *names* are often the legitimate answer ("who's on Acme's buying committee?") — so the default masks contact-*channel* PII (email, phone) the model never needs, scrubs free-text, and keeps names. The policy is **data, not code** — masking names too is a one-line change — and it's regex today, swappable to **Microsoft Presidio** for production NER detection.
 
 ---
 
