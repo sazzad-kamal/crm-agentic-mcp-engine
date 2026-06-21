@@ -209,8 +209,6 @@ The agent **reasons** → **acts** (emits a tool call) → **observes** → reas
 
 **Why a 6-turn cap?** A turn is one model round-trip. The cap is **3 sources (SQL, RAG, graph) × 2 passes** (a lookup + one wider retry). Normal questions finish in **1–2 turns** — independent sources fire in parallel; 6 is the ceiling for the worst case: three sources forced sequential, each needing a retry (e.g. *"committee minus competitors"* — find competitors first, then filter). Past 6 it's **looping, not gathering** → it falls back, staying inside **p95 ≤ 8s**. It's a **coverage bound, not a tuned number** — generous headroom that rarely binds; hitting it is a fall-back signal, not a reason to raise it.
 
-> *Asides: a 2nd widen would pull in junk that hurts grounding, so one retry is the limit. And 6 tools ≠ 6 turns — the four `sql_*` tools are alternatives, not steps. (The [repair cap](#why-max-2-repairs-not-more) is the quality question — that's the one worth measuring.)*
-
 ```mermaid
 flowchart LR
     R[Reason] --> A[Act<br/>tool_use]
