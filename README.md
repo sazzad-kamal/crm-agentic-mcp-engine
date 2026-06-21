@@ -433,7 +433,7 @@ flowchart TB
 | Turns 2–6 | 2.5K × 1.0 (×5) | 2.5K × **0.10** each (read) |
 | **Prefix input cost** | **15.0K** | **≈ 4.4K** |
 
-That's **~70% off the prefix** at 6 turns, approaching **~90%** as loops run longer (every extra turn is a 10%-price read). The reported ~85% is the blended saving across typical multi-turn traffic.
+That's **~70% off the prefix** for a single 6-turn question — the conservative floor. The bigger saving is at the **session** level: the prefix (system prompt + tool schemas) is **identical across every question**, so within the 5-minute cache window an active session reuses that one cached prefix across *all* its turns and questions — written once, read across twenty-plus turns. That pushes the sustained saving toward **~90%**; the reported **~85%** is the blended figure across active multi-turn use.
 
 Separately, a **per-tool TTL LRU cache** on the MCP server (60s SQL/graph · 300s RAG · 30s health) skips redundant *tool execution* when the same parameters recur within a session.
 
