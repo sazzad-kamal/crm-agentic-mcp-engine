@@ -104,7 +104,7 @@ flowchart TB
 
 ### Deployment & system topology
 
-The same logical design, deployed: the engine and the MCP server run as **separate Railway services** (process isolation, independent scale); retrieval, graph, and SQL live in **managed Qdrant Cloud, Neo4j Aura, and Neon Postgres**. The MCP boundary is JSON-RPC over HTTPS, carrying tool calls one way and `{result, citations[E#/D#/G#]}` back.
+The same logical design, deployed: the engine and the MCP server run as **separate cloud services** (process isolation, independent scale); retrieval, graph, and SQL live in **managed Qdrant Cloud, Neo4j Aura, and Neon Postgres**. The MCP boundary is JSON-RPC over HTTPS, carrying tool calls one way and `{result, citations[E#/D#/G#]}` back.
 
 ```mermaid
 flowchart TB
@@ -114,14 +114,14 @@ flowchart TB
         UI["React UI — chat + data panels"]
     end
 
-    subgraph RW1["Engine service · Railway"]
+    subgraph RW1["Engine service · Cloud"]
         API["FastAPI · /api/chat/stream"]
         AG["5-node LangGraph agent<br/>Agent · Validate · Action · Followup · Fallback"]
         MC["MCP client"]
         API --> AG --> MC
     end
 
-    subgraph RW2["MCP server · Railway (separate service)"]
+    subgraph RW2["MCP server · Cloud (separate service)"]
         TL["6 JSON-Schema tools · guards · per-tool TTL cache"]
     end
 
@@ -163,14 +163,14 @@ flowchart TB
         UI["React UI"]
     end
 
-    subgraph RW1["Engine service · Railway"]
+    subgraph RW1["Engine service · Cloud"]
         API["FastAPI"]
         AG["LangGraph agent"]
         MC["MCP client"]
         API --> AG --> MC
     end
 
-    subgraph RW2["MCP server · Railway"]
+    subgraph RW2["MCP server · Cloud"]
         TL["6 tools"]
     end
 
