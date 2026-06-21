@@ -261,14 +261,6 @@ If a claim can't be grounded in two re-wordings, **the evidence simply isn't the
 
 **Measured (controlled experiment).** 10 crafted non-conforming answers — missing tags, invalid citations, naked claims, heavy over-claims — run through the *real* Validate gate + repair loop (Claude Sonnet 4.6, tools unbound), with the cap raised to 4 to observe the tail:
 
-```mermaid
-xychart-beta
-    title "Cases grounded per repair attempt (n=10, cap raised to 4)"
-    x-axis ["0 (already valid)", "repair 1", "repair 2", "repair 3", "repair 4"]
-    y-axis "cases grounded" 0 --> 8
-    bar [3, 7, 0, 0, 0]
-```
-
 | Grounded at | Cases | |
 |---|---|---|
 | 0 — already valid | 3 | `███` |
@@ -318,7 +310,7 @@ The MCP server is a **separate process** (Anthropic's Model Context Protocol, JS
 
 Future-proofing benefits — portability across MCP-speaking clients (Claude Desktop, Cursor), independent deploy/scale, auth boundary — are real but secondary; the immediate engineering value is reliability + correctness at the tool boundary.
 
-The cost is one IPC hop per tool call (~1 ms stdio, network RTT over HTTP) and a separate process lifecycle to manage. Both are well-amortized: prompt-cached agent loops + per-tool TTL LRU cache mean most turns spend their latency budget in the actual SQL/Cypher/retrieval work, not the protocol.
+The cost is one network round-trip per tool call (or ~1 ms over stdio in local / Claude Desktop mode) and a separate process lifecycle to manage. Both are well-amortized: prompt-cached agent loops + per-tool TTL LRU cache mean most turns spend their latency budget in the actual SQL/Cypher/retrieval work, not the protocol.
 
 ---
 
