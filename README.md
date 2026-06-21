@@ -268,7 +268,7 @@ So 2 captures the recoverable grounding errors; beyond that the system **falls b
 | repair 3 | 0 | (none) |
 | repair 4 | 0 | (none) |
 
-**Every case that tripped the gate recovered on the 1st repair; none ever needed a 2nd, 3rd, or 4th.** Recovery saturates at repair 1, so the production cap of **2 is a safety margin** — attempts 3–4 are never reached. And because the loop **exits the moment the answer is valid**, the final answer — and therefore its **RAGAS faithfulness** — is identical for any cap ≥ 2; raising the cap changes nothing. That's the quantitative half of *"more repairs can't help"*: there's nothing left to fix.
+**Every case that tripped the gate recovered on the 1st repair; none ever needed a 2nd, 3rd, or 4th.** Recovery saturates at repair 1, so the production cap of **2 is a safety margin** — attempts 3–4 are never reached. That's the quantitative half of *"more repairs can't help"*: there's nothing left to fix.
 
 ---
 
