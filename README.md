@@ -257,7 +257,7 @@ flowchart TB
     class OK ok
 ```
 
-If a claim can't be grounded in two re-wordings, **the evidence simply isn't there** — a 3rd or 4th attempt re-words the same unsupportable claim. The right lever for a *missing-evidence* answer is more **retrieval** (the ReAct loop, ≤ 6 turns), not more **repair**. So 2 captures the recoverable grounding errors; beyond that the system **falls back honestly** rather than burn latency — each repair is a full model round-trip against the p95 ≤ 8s SLO.
+So 2 captures the recoverable grounding errors; beyond that the system **falls back honestly** rather than burn latency — each repair is a full model round-trip against the p95 ≤ 8s SLO.
 
 **Measured (controlled experiment).** 10 crafted non-conforming answers — missing tags, invalid citations, naked claims, heavy over-claims — run through the *real* Validate gate + repair loop (Claude Sonnet 4.6, tools unbound), with the cap raised to 4 to observe the tail:
 
