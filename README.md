@@ -395,6 +395,9 @@ flowchart TB
 | **Output gate** | engine (`validate`) | citation contract — every claim grounded, no naked claims |
 
 **Policy-driven, not blanket redaction.** In a CRM, contact *names* are frequently the legitimate answer ("who is on Acme's buying committee?"). So the default policy masks contact-*channel* PII (email, phone) the model never needs to reason over, scrubs free-text for embedded PII, and keeps names as the query subject. The policy is **data, not code** — default-deny (mask names too) is a one-line change. Regex-based today; the `mask_rows` / `scrub_text` seam swaps to **Microsoft Presidio** for production NER detection without touching callers.
+
+---
+
 ### Cost engineering — prompt caching cuts token cost ~85% across multi-turn loops
 
 **Why it works in a loop:** the Messages API is **stateless** — every turn re-sends the *entire* prompt (system prompt + all 6 tool schemas + the conversation so far). In a multi-turn ReAct loop, the **system prompt + tool schemas are large and identical on every turn**. Without caching you pay full input price for that static prefix on turn 1, turn 2, turn 3… With prompt caching you pay for it **once**, then re-read it at **~10% of input price** on every subsequent turn.
