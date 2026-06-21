@@ -507,10 +507,10 @@ Different models for different task complexities:
 | Component | Technology | Why |
 |---|---|---|
 | **Orchestration** | LangGraph | Stateful workflows, conditional edges, checkpointing |
-| **Agent LLM bindings** | LangChain `ChatAnthropic` + `bind_tools()` | Streaming token + tool_call deltas via `astream_events(v2)` |
+| **Agent LLM bindings** | LangChain `ChatAnthropic` + `bind_tools()` | Native tool-calling + streaming of token and tool-call deltas |
 | **Tool protocol** | Model Context Protocol (MCP) | Industry-standard agent-tool boundary; portable to Claude Desktop |
 | **RAG** | LlamaIndex (vector + BM25 + reranker) | Hybrid retrieval winner from automated comparison |
-| **Vector DB** | Qdrant | Fast hybrid (dense + sparse) search, lean self-hosted ops |
+| **Vector DB** | Qdrant | Fast hybrid (dense + sparse) search, lean ops |
 | **Graph DB** | Neo4j | Multi-hop entity traversal, Cypher queries |
 | **SQL DB** | Postgres (Neon) | Managed relational store for CRM data; read-only, sqlglot-guarded |
 | **Evaluation** | RAGAS + LLM-as-Judge | Faithfulness, relevancy, correctness, action/followup quality |
