@@ -305,7 +305,7 @@ The MCP server is a **separate process** (Anthropic's Model Context Protocol, JS
 | Property | What it buys |
 |---|---|
 | **Protocol-level contracts (JSON Schema)** | Wire-level schema drift fails loudly at the protocol boundary, not silently inside Python. Bad parameters get caught before tool execution, not deep in code paths. |
-| **Process isolation** | A tool crash (Neo4j hiccup, LlamaIndex OOM) doesn't take down the agent. Memory leaks in one tool don't degrade the whole system. Restart the MCP server without restarting the agent. |
+| **Process isolation** | A tool crash (Neo4j hiccup, LlamaIndex OOM) doesn't take down the agent. Memory leaks in one tool don't degrade the whole system. Restart the MCP server — deploy a tool fix or clear a leak — without dropping the agent's live sessions. |
 
 Secondary benefits — portability across MCP-speaking clients (future optionality), independent deploy/scale, an auth boundary — are real but weren't the drivers; the immediate engineering value is reliability + correctness at the tool boundary.
 
