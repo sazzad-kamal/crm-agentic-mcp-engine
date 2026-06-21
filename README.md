@@ -354,7 +354,7 @@ flowchart LR
 
 ### PII protection and input sanitization
 
-The read-only guards above stop *writes*; these stop *leaks* — three guardrail layers across the pipeline, plus the output citation gate:
+These layers keep **PII from leaking** into the model's context or its answers:
 
 ```mermaid
 flowchart TB
