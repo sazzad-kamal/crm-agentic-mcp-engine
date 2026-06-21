@@ -205,13 +205,13 @@ The agent operates as two cooperating loops drawn from published research.
 
 ### ReAct loop (inner — Yao et al., 2022)
 
-The agent **reasons**, **acts** (emits a tool call), **observes** the result, then reasons again. Cross-source decomposition emerges naturally — the agent emits parallel `tool_use` blocks when independent tools are needed; broadens retrieval (`top_k`, `hop_depth`) when evidence is thin.
+The agent **reasons** → **acts** (emits a tool call) → **observes** → reasons again. Cross-source decomposition emerges naturally: it emits parallel `tool_use` blocks for independent tools, and **broadens** retrieval (`top_k`, `hop_depth`) when evidence is thin.
 
-**Why a 6-turn cap?** It's derived, not arbitrary: **3 grounding sources (SQL, RAG, graph) × 2 passes each — an initial query + one *broaden* pass when evidence is thin = 6.** (Note: there are **6 tools** but only **3 sources** — the four `sql_*` tools are specialized *alternatives* the agent picks between, not steps, so a cross-source question makes ~3 calls, one per source. The 6-turns / 6-tools match is coincidental.) It's a *worst-case* budget. Parallel `tool_use` finishes most questions in 1–2 turns, but the cap has to cover the hardest case: queries that **can't** be parallelized because they *depend* on each other — e.g., *"committee minus competitors"* must find the competitors (graph) **first**, then filter. 6 lets the agent fully explore all three sources with a broaden pass even when it's forced to go sequentially. Past 6 it isn't gathering *new* evidence — it's looping — so it answers or falls back, keeping the loop inside the **p95 ≤ 8s** budget (each turn is a full model round-trip).
+**Why a 6-turn cap?** Derived, not arbitrary: **3 grounding sources (SQL, RAG, graph) × 2 passes** (initial + one *broaden*) = 6. It's a **worst-case coverage budget** — parallel `tool_use` finishes most questions in 1–2 turns, but the cap must cover the hardest case: **dependent** queries that can't parallelize (e.g. *"committee minus competitors"* — find competitors in the graph **first**, then filter). Six lets the agent fully explore all three sources with a broaden pass even when forced to go sequentially. Past 6 it's **looping, not gathering** → it answers or falls back, staying inside **p95 ≤ 8s** (each turn is a full model round-trip). *(The 6 tools ≠ 6 turns: the four `sql_*` tools are specialized alternatives the agent picks between, not steps, so a cross-source question makes ~3 source calls — the match is coincidental.)*
 
-**Why 2 passes per source, not 3?** One broaden is the **recall ↔ precision** sweet spot — a *second* widening pulls in irrelevant chunks that **hurt** grounding (the base window is already tuned: `top_k=10, rerank→5`). If one reasonable widen doesn't surface the evidence, it isn't in that source → fall back, don't keep widening.
+**Why 2 passes per source, not 3?** One broaden is the **recall ↔ precision** sweet spot — the base window is already tuned (`top_k=10, rerank→5`), and a second widening pulls in irrelevant chunks that **hurt** grounding. If one reasonable widen doesn't surface the evidence, it isn't in that source → **fall back, don't keep widening.**
 
-This is a **coverage bound** — derived from the source count — *not* a quality bound like the [repair cap](#why-max-2-repairs-not-more) below. There's no curve to tune: 6 either covers the sources or it doesn't. And 6 is a generous **ceiling**, not a tuned optimum — most questions finish well under it, so it rarely binds; if one ever hits the cap, that's a *fall-back* signal, not a *raise-the-cap* one. (The repair cap was the quality question — that's the one worth measuring.)
+This is a **coverage bound** (derived from the source count) — *not* a quality bound like the [repair cap](#why-max-2-repairs-not-more) below. There's no curve to tune: 6 either covers the sources or it doesn't. It's a generous **ceiling** that rarely binds; **hitting it is a fall-back signal, not a raise-the-cap one.** *(The repair cap is the quality question — that's the one worth measuring.)*
 
 ```mermaid
 flowchart LR
@@ -585,6 +585,7 @@ Different models for different task complexities:
 | **Agent LLM bindings** | LangChain `ChatAnthropic` + `bind_tools()` | Streaming token + tool_call deltas via `astream_events(v2)` |
 | **Tool protocol** | Model Context Protocol (MCP) | Industry-standard agent-tool boundary; portable to Claude Desktop |
 | **RAG** | LlamaIndex (vector + BM25 + reranker) | Hybrid retrieval winner from automated comparison |
+| **Vector DB** | Qdrant | Fast hybrid (dense + sparse) search, lean self-hosted ops |
 | **Graph DB** | Neo4j | Multi-hop entity traversal, Cypher queries |
 | **SQL DB** | Postgres (Neon) | Managed relational store for CRM data; read-only, sqlglot-guarded |
 | **Evaluation** | RAGAS + LLM-as-Judge | Faithfulness, relevancy, correctness, action/followup quality |
