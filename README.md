@@ -307,7 +307,7 @@ The MCP server is a **separate process** (Anthropic's Model Context Protocol, JS
 | **Protocol-level contracts (JSON Schema)** | Wire-level schema drift fails loudly at the protocol boundary, not silently inside Python. Bad parameters get caught before tool execution, not deep in code paths. |
 | **Process isolation** | A tool crash (Neo4j hiccup, LlamaIndex OOM) doesn't take down the agent. Memory leaks in one tool don't degrade the whole system. Restart the MCP server without restarting the agent. |
 
-Future-proofing benefits — portability across MCP-speaking clients (Claude Desktop, Cursor), independent deploy/scale, auth boundary — are real but secondary; the immediate engineering value is reliability + correctness at the tool boundary.
+Secondary benefits — portability across MCP-speaking clients (future optionality), independent deploy/scale, an auth boundary — are real but weren't the drivers; the immediate engineering value is reliability + correctness at the tool boundary.
 
 The cost is one network round-trip per tool call (or ~1 ms over stdio in local / Claude Desktop mode) and a separate process lifecycle to manage. Both are well-amortized: prompt-cached agent loops + per-tool TTL LRU cache mean most turns spend their latency budget in the actual SQL/Cypher/retrieval work, not the protocol.
 
