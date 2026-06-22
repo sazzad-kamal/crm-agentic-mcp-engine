@@ -347,7 +347,7 @@ flowchart LR
     LIM --> EXEC["Execute against<br/>Postgres / Neo4j"]
 ```
 
-- **SQL guard (sqlglot AST)**: blocks INSERT/DELETE/DROP/UPDATE/CREATE/ALTER/GRANT, blocks file-reading TVFs (`read_csv`), auto-injects `LIMIT 1000`
+- **SQL guard (sqlglot AST)**: blocks INSERT/DELETE/DROP/UPDATE/CREATE/ALTER/GRANT, blocks file-reading functions, auto-injects `LIMIT 1000`
 - **Cypher guard (read-only enforcement)**: blocks CREATE/DELETE/DETACH/SET/REMOVE/MERGE/DROP/CALL/FOREACH; auto-injects `LIMIT 1000`
 
 *Why `LIMIT 1000`?* It caps the blast radius of a mis-generated query — without it, a bad `WHERE` could dump an entire table into the model's context (cost + latency blowup) or the response. 1000 rows is generous for analytical CRM questions while bounding the worst case, and the LLM reasons better over a bounded result set than tens of thousands of rows.
