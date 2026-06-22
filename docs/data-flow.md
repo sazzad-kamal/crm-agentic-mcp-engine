@@ -25,7 +25,7 @@ sequenceDiagram
     A->>MC: tool_call(sql_query, args)
     MC->>MS: POST /mcp tools/call (JSON-RPC)
     MS->>T: sql_query(question)
-    T->>T: Claude SQL plan → sqlglot guard → DuckDB
+    T->>T: Claude SQL plan → sqlglot guard → Postgres
     T-->>MS: {result, citations, debug}
     MS-->>MC: JSON-RPC response
     MC-->>G: ToolMessage + record
@@ -40,10 +40,10 @@ sequenceDiagram
     alt validate passes
         V-->>G: ok=True
         par
-            G->>A: action_node (GPT-nano)
+            G->>A: action_node (GPT-5.4-nano)
             A-->>G: suggested_action
         and
-            G->>A: followup_node (GPT-nano)
+            G->>A: followup_node (GPT-5.4-nano)
             A-->>G: follow_up_suggestions
         end
         G-->>API: SSE: done event with full payload
@@ -96,7 +96,7 @@ For a question like *"Acme's pipeline + how Act! tracks deal stages"* that fires
 4. MCP client → MCP server → sql_query tool
 5. Tool: Claude plans → SELECT COUNT(*) FROM companies WHERE status='Active'
 6. Guard: sqlglot validates, auto-injects LIMIT 1000
-7. DuckDB: executes, returns [{active_company_count: 6}]
+7. Postgres: executes, returns [{active_company_count: 6}]
 8. Tool returns: {result: [{active_company_count: 6}], citations: [{id: "E1", source: "sql", excerpt: "{active_company_count: 6}"}]}
 9. Agent observes → reasons → "enough; final answer"
 10. Agent emits final text: "Answer: There are 6 Active companies in the CRM [E1].\nEvidence:\n- [E1] {active_company_count: 6}"
@@ -247,12 +247,12 @@ state["follow_up_suggestions"] = [...]
 |---|---|---|
 | **HTTP / SSE** | Engine — `backend/api/chat.py` | `/api/chat/stream` endpoint, request validation |
 | **Streaming adapter** | Engine — `backend/agent/streaming.py` | LangGraph `astream_events(v2)` → SSE event mapping |
-| **Graph orchestration** | Engine — `backend/agent/graph.py` | 5-node wiring, conditional edges, MemorySaver |
+| **Graph orchestration** | Engine — `backend/agent/graph.py` | 5-node wiring, conditional edges, PostgresSaver checkpointing |
 | **Agent loop** | Engine — `backend/agent/agent_node/` | LLM invocation, system prompt, repair handling |
 | **MCP client** | Engine — `backend/agent/mcp_client/` | JSON-RPC client, ToolNode bridge, citation merging |
 | **Tool registry** | MCP server — `crm_mcp_server/server.py` | Tool JSON Schemas + anti-example descriptions |
 | **Tool handlers** | MCP server — `crm_mcp_server/tools/` | 6 tool implementations with `@cached_tool` decorator |
-| **Tool internals** (planners, guards, executors) | MCP server — `crm_mcp_server/{sql,rag,graph_rag}/` | Claude planners, sqlglot/Cypher guards, DuckDB/Neo4j executors |
+| **Tool internals** (planners, guards, executors) | MCP server — `crm_mcp_server/{sql,rag,graph_rag}/` | Claude planners, sqlglot/Cypher guards, Postgres/Neo4j executors |
 | **Action + Followup** | Engine — `backend/agent/{action,followup}/` | Post-validation terminal nodes (unchanged from earlier design) |
 | **Validate gate** | Engine — `backend/agent/validate/deterministic.py` | Regex + Pydantic evidence-tag verification |
 | **Eval harness** | Engine — `backend/eval/` | RAGAS + LLM-as-Judge + regression gate |

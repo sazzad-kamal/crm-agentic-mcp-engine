@@ -11,8 +11,8 @@ flowchart TB
     Agent{Agent<br/>ReAct loop<br/>Claude Sonnet 4.6}
     ToolNode[ToolNode<br/>MCP client bridge]
     Validate{Validate<br/>deterministic<br/>regex + Pydantic}
-    Action[Action<br/>GPT-nano]
-    Followup[Followup<br/>GPT-nano]
+    Action[Action<br/>GPT-5.4-nano]
+    Followup[Followup<br/>GPT-5.4-nano]
     Fallback[Fallback<br/>evidence-only<br/>synthesis]
     END_NODE([END])
 
@@ -80,7 +80,7 @@ flowchart TB
    ║ sql_health                           │  ║  │             │
    ║   │             │             │      │  ║  │             │
    ║   ▼             ▼             ▼      │  ║  │             │
-   ║ DuckDB     LlamaIndex      Neo4j     │  ║  │             │
+   ║ Postgres     LlamaIndex      Neo4j     │  ║  │             │
    ║   │             │             │      │  ║  │             │
    ║   └─────────────┴─────────────┘      │  ║  │             │
    ║              │                       │  ║  │             │
@@ -163,13 +163,13 @@ def should_repair(state) -> Any:
 
 ## Checkpointing
 
-The graph compiles with `MemorySaver`:
+The graph compiles with `PostgresSaver`:
 
 ```python
-return g.compile(checkpointer=MemorySaver())
+return g.compile(checkpointer=PostgresSaver(...))
 ```
 
-Each session uses a UUID `thread_id` for state persistence across turns. State is in-process — sessions don't survive engine restart. Durable SQLite (`AsyncSqliteSaver`) is documented as a prod-hardening TODO; requires lifespan-managed enter/exit at FastAPI startup.
+Each session uses a UUID `thread_id` for state persistence across turns. State is durable — checkpoints survive engine restarts and are shared across multiple instances.
 
 ## Comparison vs. Earlier Design
 

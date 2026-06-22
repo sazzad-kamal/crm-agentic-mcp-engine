@@ -7,7 +7,7 @@ This document describes the system architecture of the CRM Agentic Reasoning Eng
 The system is a **LangGraph ReAct (Reason+Act) tool-use agent** backed by a **standalone MCP server**. Two processes, one product:
 
 - **Engine** — FastAPI + LangGraph + Claude Sonnet 4.6 — runs the agent loop, validates outputs, generates terminal-node responses (Action + Followup)
-- **MCP server** (`crm-mcp-server`) — Python + JSON-RPC over stdio/HTTP — exposes 6 JSON-Schema-contracted tools over DuckDB, LlamaIndex, and Neo4j
+- **MCP server** (`crm-mcp-server`) — Python + JSON-RPC over stdio/HTTP — exposes 6 JSON-Schema-contracted tools over Postgres, LlamaIndex, and Neo4j
 
 The same MCP server is independently demoable in Claude Desktop via stdio — same protocol, two consumable surfaces from one codebase.
 
@@ -49,7 +49,7 @@ flowchart TB
     end
 
     subgraph DataLayer["Data Layer"]
-        DuckDB["DuckDB<br/>(CRM data)"]
+        Postgres["Postgres<br/>(CRM data)"]
         Neo4j["Neo4j<br/>(knowledge graph)"]
         LlamaIndex["LlamaIndex<br/>(Act! product docs)"]
     end
@@ -75,7 +75,7 @@ flowchart TB
     Server --> Tools
     Tools --> Cache
 
-    SQL_Q & SQL_C & SQL_T & SQL_H -.-> DuckDB
+    SQL_Q & SQL_C & SQL_T & SQL_H -.-> Postgres
     RAG_S -.-> LlamaIndex
     GRAPH_Q -.-> Neo4j
 
@@ -237,7 +237,7 @@ class ToolResult(BaseModel):
 
 **Signature**: `sql_query(question: str, conversation_history: str = "") -> ToolResult`
 
-**Flow**: Claude Sonnet 4.5 plans DuckDB SQL → sqlglot AST guard validates (blocks writes, auto-injects `LIMIT 1000`) → DuckDB execution → rows + `E#` citations. Single retry on failure with `previous_error` fed back to planner.
+**Flow**: Claude Sonnet 4.5 plans Postgres SQL → sqlglot AST guard validates (blocks writes, auto-injects `LIMIT 1000`) → Postgres execution → rows + `E#` citations. Single retry on failure with `previous_error` fed back to planner.
 
 ### sql_compare
 
@@ -363,7 +363,7 @@ SSE via `astream_events(version="v2")` — gives us token-level `text_delta` and
 | **Cypher planning** | Anthropic | Claude Sonnet 4.5 | Same structured-output advantage |
 | **Action suggestions** | OpenAI | GPT-5.4-nano | Simple creative output, low cost |
 | **Followup generation** | OpenAI | GPT-5.4-nano | Question generation, low cost |
-| **Answer/Action/Followup judges (eval)** | OpenAI | GPT-5.4-mini | Structured 5-dim scoring |
+| **Answer/Action/Followup judges (eval)** | OpenAI | GPT-5.4 | Structured 5-dim scoring |
 | **RAG embeddings** | OpenAI | text-embedding-3-small | Vector similarity for retrieval |
 
 ## Evaluation Framework
@@ -435,7 +435,7 @@ Word-boundary regex (avoids false positives like `CREATED` substrings).
 | Agent reasoning + tool_use emit (1 turn) | 800 ms - 1.5 s |
 | MCP HTTP round-trip | ~5-15 ms |
 | SQL planning (Claude) | 500-800 ms |
-| SQL execution (DuckDB) | 10-50 ms |
+| SQL execution (Postgres) | 10-50 ms |
 | Cypher planning (Claude) | 500-800 ms |
 | Cypher execution (Neo4j) | 50-200 ms |
 | RAG retrieval (LlamaIndex + reranker) | 200-500 ms |
@@ -490,4 +490,3 @@ A PR or push is blocked when any of:
 - Audit logging for all SQL/Cypher executions (currently logs blocked queries only)
 - Multi-tenancy / per-customer MCP server deployments
 - Real production telemetry (currently SLOs are eval-only, not request-path)
-- Durable checkpointing via `AsyncSqliteSaver` (currently using `MemorySaver` — sessions don't survive engine restart)
